@@ -24,6 +24,8 @@ export interface RunTurnParams {
   sessionId: string | undefined
   signal: AbortSignal
   handlers: TurnHandlers
+  /** Optional dispatcher instruction appended to this turn (e.g. "build it now"). */
+  note?: string
 }
 
 export type ProviderRunner = (params: RunTurnParams) => Promise<TurnResult>

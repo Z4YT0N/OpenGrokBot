@@ -1,4 +1,5 @@
 import express from 'express'
+import { spawn } from 'node:child_process'
 import { copyFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -156,6 +157,22 @@ app.get('/api/conversations/:id/export.md', (req, res) => {
   res.setHeader('Content-Type', 'text/markdown; charset=utf-8')
   res.setHeader('Content-Disposition', `attachment; filename="${c.id}.md"`)
   res.send(lines.join('\n'))
+})
+
+/** Open a file an employee produced with the OS default app (browser for .html). Local app, local disk. */
+app.post('/api/open', (req, res) => {
+  const p = typeof req.body?.path === 'string' ? req.body.path.trim() : ''
+  if (!p || !path.isAbsolute(p) || !existsSync(p)) {
+    res.status(400).json({ error: 'file not found' })
+    return
+  }
+  const cmd = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', p]] as const : process.platform === 'darwin' ? ['open', [p]] as const : ['xdg-open', [p]] as const
+  try {
+    spawn(cmd[0], [...cmd[1]], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) })
+  }
 })
 
 // ---- team editing ----

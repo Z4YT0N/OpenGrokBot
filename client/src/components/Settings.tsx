@@ -117,8 +117,9 @@ function General({ team }: SettingsProps) {
       </Card>
       <h4>Conversation rules</h4>
       <Card>
-        <Row title="When I post in a group without mentioning anyone" hint="Everyone: all unmuted members reply in order. Mentions only: just the first member (your manager) replies and pulls others in with @mentions.">
+        <Row title="When I post in a group without mentioning anyone" hint="Smart: a fast dispatcher picks the 1-3 employees whose job it is (a build request goes to one builder). Everyone: all unmuted members reply in order. Mentions only: just the first member replies and pulls others in.">
           <select value={settings.groupMode} onChange={(e) => setSettings({ ...settings, groupMode: e.target.value as TeamSettings['groupMode'] })}>
+            <option value="smart">Smart routing (recommended)</option>
             <option value="everyone">Everyone replies</option>
             <option value="mentions-only">Mentions only</option>
           </select>

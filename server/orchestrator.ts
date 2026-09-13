@@ -3,6 +3,7 @@ import type { Account } from './account.js'
 import { providerKeepsSession, runAgentTurn } from './agent.js'
 import { emit } from './events.js'
 import { findMentions } from './mentions.js'
+import { routeSpeakers, type RouteMode } from './router.js'
 import type { Store } from './store.js'
 import { summarizeUsage } from './usage.js'
 import type { Agent, Conversation, Message, ProviderDef, Team } from '../shared/types.js'
@@ -13,16 +14,22 @@ interface RoundState {
   pending: Message[]
 }
 
-/** Decide who speaks first for an owner message. Exported for tests. */
-export function initialQueue(team: Team, conversation: Conversation, userText: string): Agent[] {
+/**
+ * Decide who speaks first for an owner message without the router (DMs, mentions, the
+ * non-smart group modes). Returns null when the smart router should decide. Exported for tests.
+ */
+export function initialQueue(team: Team, conversation: Conversation, userText: string): Agent[] | null {
   const members = team.agents.filter((a) => conversation.memberIds.includes(a.id))
   if (conversation.kind === 'dm') return members
   const mentioned = findMentions(userText, members)
   if (mentioned.length > 0) return mentioned
   const unmuted = members.filter((a) => !a.muted)
   if (team.settings.groupMode === 'mentions-only') return unmuted.slice(0, 1)
-  return unmuted
+  if (team.settings.groupMode === 'everyone') return unmuted
+  return null
 }
+
+const BUILD_NOTE = 'Dispatcher: the boss asked for something to be made. Build it now with your tools, then reply with the full path and one or two sentences. No plans, no options, no questions.'
 
 const FALLBACK_PROVIDER: ProviderDef = { kind: 'claude', label: 'Claude (subscription)' }
 
@@ -147,9 +154,17 @@ export class Orchestrator {
     if (!conversation) return
     const team = this.getTeam()
     const members = team.agents.filter((a) => conversation.memberIds.includes(a.id))
-    const queue = initialQueue(team, conversation, trigger.text)
+    let queue = initialQueue(team, conversation, trigger.text)
+    let mode: RouteMode = 'discuss'
+    if (queue === null) {
+      const route = await routeSpeakers(team, conversation, trigger.text, signal)
+      queue = route.speakers
+      mode = route.mode
+      console.log(`[router] ${conversation.id}: ${route.speakers.map((a) => a.name).join(', ') || 'nobody'} (${route.mode}) — ${route.why}`)
+    }
     const turns = new Map<string, number>()
     let count = 0
+    let first = true
 
     while (queue.length > 0 && count < team.settings.maxMessagesPerRound && !signal.aborted) {
       const agent = queue.shift()
@@ -158,7 +173,9 @@ export class Orchestrator {
       if (this.state(conversationId).pending.length > 0) break
       count++
       turns.set(agent.id, (turns.get(agent.id) ?? 0) + 1)
-      const reply = await this.turn(conversationId, agent, signal)
+      const note = first && mode === 'build' && agent.tools.some((t) => ['Edit', 'Write'].includes(t)) ? BUILD_NOTE : undefined
+      first = false
+      const reply = await this.turn(conversationId, agent, signal, note)
       if (!reply) continue
       for (const m of findMentions(reply, members, agent.id)) {
         const taken = turns.get(m.id) ?? 0
@@ -170,7 +187,7 @@ export class Orchestrator {
   }
 
   /** Runs one agent turn, streaming into a message. Returns the final text ('' if skipped/error). */
-  private async turn(conversationId: string, agent: Agent, signal: AbortSignal): Promise<string> {
+  private async turn(conversationId: string, agent: Agent, signal: AbortSignal, note?: string): Promise<string> {
     const conversation = this.store.get(conversationId)
     if (!conversation) return ''
     const team = this.getTeam()
@@ -204,6 +221,7 @@ export class Orchestrator {
       provider,
       sessionId,
       signal,
+      ...(note ? { note } : {}),
       handlers: {
         onDelta: (delta) => {
           start()
@@ -232,7 +250,7 @@ export class Orchestrator {
     if (result.error && /session|resume|not found|No conversation found|thread/i.test(result.error) && sessionId) {
       // The stored session is gone (e.g. transcript deleted). Forget it and retry once fresh.
       this.store.clearSession(conversationId, sessionKey)
-      if (!started) return this.turn(conversationId, agent, signal)
+      if (!started) return this.turn(conversationId, agent, signal, note)
     }
 
     const usagePatch = result.usage ? { usage: result.usage } : {}

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>محمود عمرو — Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --bg:#08090c; --panel:#10131a; --line:#1d2230; --text:#eef1f6; --muted:#8b93a7; --a1:#7c5cff; --a2:#22d3ee; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { overflow-x:hidden; }
+  body { font-family:"IBM Plex Sans Arabic",system-ui,sans-serif; background:var(--bg); color:var(--text); line-height:1.7; }
+  body::before { content:""; position:fixed; inset:0; pointer-events:none;
+    background:
+      radial-gradient(600px 400px at 85% 10%, #7c5cff22, transparent 70%),
+      radial-gradient(500px 400px at 10% 90%, #22d3ee18, transparent 70%),
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0/48px 48px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0/48px 48px;
+    mask-image:radial-gradient(ellipse at center, #000 30%, transparent 75%); opacity:.9; }
+  nav { position:relative; display:flex; justify-content:space-between; align-items:center;
+        max-width:1200px; margin:0 auto; padding:22px 20px; }
+  .mark { font-family:"JetBrains Mono",monospace; font-weight:600; direction:ltr; }
+  .mark span { color:var(--a2); }
+  .links { display:flex; gap:22px; font-size:15px; }
+  .links a { color:var(--muted); text-decoration:none; }
+  .links a:hover { color:var(--text); }
+  .hero { position:relative; max-width:1200px; margin:0 auto; padding:40px 20px 64px;
+          display:grid; gap:48px; align-items:center; grid-template-columns:1fr; }
+  .hero > * { min-width:0; }
+  .status { display:inline-flex; align-items:center; gap:10px; font-size:14px; color:var(--muted);
+            border:1px solid var(--line); background:#10131acc; border-radius:999px; padding:6px 14px; margin-bottom:22px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 #22c55e88; animation:pulse 2s infinite; }
+  @keyframes pulse { 70% { box-shadow:0 0 0 10px #22c55e00; } 100% { box-shadow:0 0 0 0 #22c55e00; } }
+  .hello { color:var(--muted); font-size:20px; margin-bottom:4px; }
+  h1 { font-size:clamp(40px,7vw,76px); line-height:1.15; font-weight:700; margin-bottom:18px; }
+  h1 .grad { background:linear-gradient(90deg,var(--a2),var(--a1)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .role { font-size:clamp(18px,2.4vw,24px); color:var(--text); margin-bottom:12px; }
+  .role b { color:var(--a2); font-weight:500; }
+  .sub { font-size:18px; color:var(--muted); max-width:40ch; margin-bottom:34px; }
+  .btns { display:flex; flex-wrap:wrap; gap:12px; }
+  .btn { display:inline-flex; align-items:center; gap:10px; padding:15px 26px; border-radius:14px;
+         font-weight:700; font-size:17px; text-decoration:none; transition:transform .15s, background .15s; }
+  .btn:hover { transform:translateY(-2px); }
+  .primary { background:linear-gradient(90deg,var(--a1),#5b8cff); color:#fff; }
+  .ghost { border:1px solid var(--line); color:var(--text); background:#10131a99; }
+  .ghost:hover { background:#161a24; }
+  .arrow { display:inline-block; transform:scaleX(-1); }
+  .stats { display:flex; gap:28px; margin-top:40px; padding-top:24px; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .stats div { font-size:14px; color:var(--muted); }
+  .stats strong { display:block; font-size:26px; color:var(--text); font-family:"JetBrains Mono",monospace; direction:ltr; text-align:right; }
+
+  /* code card */
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:18px; overflow:hidden;
+          box-shadow:0 30px 80px #0009; direction:ltr; }
+  .bar { display:flex; align-items:center; gap:7px; padding:12px 16px; border-bottom:1px solid var(--line); }
+  .bar b { width:11px; height:11px; border-radius:50%; }
+  .bar b:nth-child(1){background:#ff5f57}.bar b:nth-child(2){background:#febc2e}.bar b:nth-child(3){background:#28c840}
+  .bar span { margin-left:10px; font:13px "JetBrains Mono",monospace; color:var(--muted); }
+  pre { font:14.5px/1.9 "JetBrains Mono",monospace; padding:20px 22px; color:#c9d1e3; white-space:pre-wrap; }
+  .k{color:#c792ea}.s{color:#c3e88d}.p{color:#82aaff}.c{color:#5c6680}.n{color:#f78c6c}
+  .cursor { display:inline-block; width:8px; height:17px; background:var(--a2); vertical-align:-3px; animation:blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+
+  @media (max-width:640px) { .links { display:none; } }
+  @media (min-width:960px) { .hero { grid-template-columns:1.1fr .9fr; min-height:calc(100svh - 80px); padding-top:0; } }
+  @media (prefers-reduced-motion:reduce) { .dot, .cursor { animation:none; } }
+</style>
+</head>
+<body>
+  <nav>
+    <div class="mark">mahmoud<span>.amr</span></div>
+    <div class="links"><a href="#work">شغلي</a><a href="#about">عني</a><a href="#contact">تواصل</a></div>
+  </nav>
+
+  <main class="hero">
+    <section>
+      <div class="status"><span class="dot"></span> متاح لمشاريع جديدة</div>
+      <p class="hello">أهلاً، أنا</p>
+      <h1><span class="grad">محمود عمرو</span></h1>
+      <p class="role">مؤسس <b>FortuneCode</b> · بحوّل أفكار الشركات لمنتجات شغالة</p>
+      <p class="sub">بنبني مواقع وأنظمة ERP وتطبيقات لشركات ومصانع في مصر والسعودية، من أول الفكرة لحد ما السيستم يشتغل عند العميل.</p>
+      <div class="btns">
+        <a class="btn primary" href="#work">شوف شغلي <span class="arrow">→</span></a>
+        <a class="btn ghost" href="#contact">كلمني</a>
+      </div>
+      <div class="stats">
+        <div><strong>+??</strong>مشروع</div>
+        <div><strong>2</strong>دول</div>
+        <div><strong>+?</strong>سنين خبرة</div>
+      </div>
+    </section>
+
+    <aside class="card" aria-hidden="true">
+      <div class="bar"><b></b><b></b><b></b><span>about.ts</span></div>
+<pre><span class="k">const</span> mahmoud = {
+  role: <span class="s">"Founder @ FortuneCode"</span>,
+  based: <span class="s">"Egypt"</span>,
+  markets: [<span class="s">"EG"</span>, <span class="s">"KSA"</span>],
+  builds: [<span class="s">"Web"</span>, <span class="s">"ERP"</span>, <span class="s">"Mobile"</span>],
+  stack: [<span class="s">"TypeScript"</span>, <span class="s">"Next.js"</span>, <span class="s">"Node"</span>],
+};
+
+<span class="c">// next project?</span>
+mahmoud.<span class="p">startProject</span>(<span class="s">"yours"</span>);<span class="cursor"></span></pre>
+    </aside>
+  </main>
+</body>
+</html>

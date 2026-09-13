@@ -927,3 +927,29 @@ select {
   font-size: 18px;
   line-height: 1;
 }
+
+/* file chips: click to open with the OS default app */
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(47, 126, 245, 0.16);
+  color: #9cc4ff;
+  border: 1px solid rgba(47, 126, 245, 0.35);
+  border-radius: 8px;
+  padding: 2px 9px 2px 7px;
+  font-family: var(--mono);
+  font-size: 13px;
+  vertical-align: baseline;
+  cursor: pointer;
+  direction: ltr;
+}
+
+.file-chip:hover {
+  background: rgba(47, 126, 245, 0.28);
+}
+
+.file-chip-icon {
+  font-size: 12px;
+}

@@ -9,10 +9,10 @@ const SHAPES = new Set(['blob', 'round', 'triangle', 'hex', 'drop'])
 const PROVIDER_KINDS = new Set(['claude', 'codex', 'gemini', 'openai'])
 
 const DEFAULT_SETTINGS: TeamSettings = {
-  maxMessagesPerRound: 8,
+  maxMessagesPerRound: 6,
   maxTurnsPerAgentPerRound: 2,
   maxTurnsPerReply: 40,
-  groupMode: 'everyone',
+  groupMode: 'smart',
   language: 'auto',
   notifications: true,
 }
@@ -74,6 +74,7 @@ export function parseAgent(raw: unknown, label = 'agent'): Agent {
   }
   if (typeof r.cwd === 'string' && r.cwd.trim().length > 0) agent.cwd = r.cwd.trim()
   if (typeof r.department === 'string' && r.department.trim().length > 0) agent.department = r.department.trim()
+  if (typeof r.scope === 'string' && r.scope.trim().length > 0) agent.scope = r.scope.trim()
   return agent
 }
 
@@ -119,14 +120,14 @@ function parseSettings(raw: unknown): TeamSettings {
     return Math.min(max, Math.max(min, Math.round(v)))
   }
   const groupMode = r.groupMode === undefined ? DEFAULT_SETTINGS.groupMode : asString(r.groupMode, 'settings.groupMode')
-  if (groupMode !== 'everyone' && groupMode !== 'mentions-only') fail('settings.groupMode must be everyone or mentions-only')
+  if (!(['smart', 'everyone', 'mentions-only'] as string[]).includes(groupMode)) fail('settings.groupMode must be smart, everyone or mentions-only')
   const language = r.language === undefined ? DEFAULT_SETTINGS.language : asString(r.language, 'settings.language')
   if (!['auto', 'ar', 'en'].includes(language)) fail('settings.language must be auto, ar or en')
   return {
     maxMessagesPerRound: num('maxMessagesPerRound', 1, 30),
     maxTurnsPerAgentPerRound: num('maxTurnsPerAgentPerRound', 1, 10),
     maxTurnsPerReply: num('maxTurnsPerReply', 1, 200),
-    groupMode,
+    groupMode: groupMode as TeamSettings['groupMode'],
     language: language as TeamSettings['language'],
     notifications: r.notifications === undefined ? DEFAULT_SETTINGS.notifications : r.notifications === true,
   }

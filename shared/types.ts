@@ -32,6 +32,8 @@ export interface Agent {
   role: string
   /** Short badge shown next to the name in the sidebar (e.g. "Backend"). */
   department?: string
+  /** One line: what this employee owns and answers for. Drives routing and stays-in-lane behavior. */
+  scope?: string
   color: string
   shape: AvatarShape
   /** Key into team.providers. Defaults to "claude". */
@@ -59,7 +61,7 @@ export interface Owner {
   title: string
 }
 
-export type GroupMode = 'everyone' | 'mentions-only'
+export type GroupMode = 'smart' | 'everyone' | 'mentions-only'
 export type ReplyLanguage = 'auto' | 'ar' | 'en'
 
 export interface TeamSettings {
@@ -69,7 +71,7 @@ export interface TeamSettings {
   maxTurnsPerAgentPerRound: number
   /** Max agentic tool-loop turns inside one employee reply. */
   maxTurnsPerReply: number
-  /** everyone: all unmuted members reply to a general message. mentions-only: only the first member replies unless someone is mentioned. */
+  /** smart: a fast router picks the 1-3 relevant employees. everyone: all unmuted members reply. mentions-only: only the first member replies unless someone is mentioned. */
   groupMode: GroupMode
   /** Language employees reply in. auto = mirror the owner. */
   language: ReplyLanguage

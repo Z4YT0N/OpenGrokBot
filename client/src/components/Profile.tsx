@@ -167,6 +167,11 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
             <input value={draft.role} onChange={(e) => set('role', e.target.value)} placeholder="FULL STACK DEV" />
           </label>
           <label className="field">
+            <span>Owns (one line)</span>
+            <input value={draft.scope ?? ''} onChange={(e) => set('scope', e.target.value || undefined)} placeholder="frontend pages, landing pages, HTML/CSS, portfolio" />
+            <small>What this employee answers for. The dispatcher routes messages by it and the employee stays quiet outside it.</small>
+          </label>
+          <label className="field">
             <span>Label (optional)</span>
             <input value={draft.department ?? ''} onChange={(e) => set('department', e.target.value || undefined)} placeholder="Engineering" />
           </label>

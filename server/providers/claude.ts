@@ -85,13 +85,13 @@ export function buildQueryOptions(team: Team, conversation: Conversation, agent:
 }
 
 export async function runClaudeTurn(params: RunTurnParams): Promise<TurnResult> {
-  const { team, conversation, agent, provider, sessionId, signal, handlers } = params
+  const { team, conversation, agent, provider, sessionId, signal, handlers, note } = params
   const abort = new AbortController()
   const onAbort = (): void => abort.abort()
   if (signal.aborted) abort.abort()
   else signal.addEventListener('abort', onAbort, { once: true })
 
-  const prompt = buildTurnPrompt(team, conversation, agent, sessionId !== undefined)
+  const prompt = buildTurnPrompt(team, conversation, agent, sessionId !== undefined, note)
   const q = query({ prompt, options: buildQueryOptions(team, conversation, agent, provider, sessionId, abort) })
 
   let text = ''

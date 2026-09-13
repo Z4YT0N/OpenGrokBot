@@ -26,14 +26,14 @@ interface StreamChunk {
  * reply and runs a small tool loop with local file/shell tools when the employee has tools.
  */
 export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> {
-  const { team, conversation, agent, provider, signal, handlers } = params
+  const { team, conversation, agent, provider, signal, handlers, note } = params
   const started = Date.now()
   const cwd = agent.cwd ?? team.workspace
   const allowOutside = agent.autoApproveTools || agent.permissionMode === 'bypassPermissions'
   const tools = LOCAL_TOOLS.filter((t) => agent.tools.includes(t.claudeName))
   const messages: ChatMessage[] = [
     { role: 'system', content: buildSystemPrompt(team, conversation, agent) },
-    { role: 'user', content: buildTurnPrompt(team, conversation, agent, false) },
+    { role: 'user', content: buildTurnPrompt(team, conversation, agent, false, note) },
   ]
   const usage = emptyUsage(agent.model)
   usage.numTurns = 0

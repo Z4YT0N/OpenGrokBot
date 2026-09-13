@@ -98,3 +98,7 @@ export function putSettings(patch: SettingsPatch): Promise<unknown> {
 export function refreshAccount(): Promise<{ account: AccountStatus }> {
   return call('/api/account/refresh', { method: 'POST' })
 }
+
+export function openFile(path: string): Promise<unknown> {
+  return call('/api/open', json('POST', { path }))
+}

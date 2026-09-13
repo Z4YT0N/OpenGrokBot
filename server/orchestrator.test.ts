@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import { buildTurnPrompt } from './agent.js'
 import { findMentions } from './mentions.js'
 import { initialQueue } from './orchestrator.js'
+import { __test as routerTest } from './router.js'
 import type { Agent, Conversation, Team } from '../shared/types.js'
 
 function agent(id: string, name: string): Agent {
@@ -13,6 +14,7 @@ const khaled = agent('khaled', 'KHALED')
 const omar = agent('omar', 'OMAR')
 const sara = agent('sara', 'SARA ALI')
 const team: Team = { company: 'Co', owner: { id: 'user', name: 'Mahmoud Amr', title: 'CEO' }, workspace: '.', agents: [khaled, omar, sara], mcpServers: {}, providers: { claude: { kind: 'claude', label: 'Claude' } }, settings: { maxMessagesPerRound: 8, maxTurnsPerAgentPerRound: 2, maxTurnsPerReply: 40, groupMode: 'everyone', language: 'auto', notifications: true } }
+const smartTeam: Team = { ...team, settings: { ...team.settings, groupMode: 'smart' } }
 
 function group(memberIds = ['user', 'khaled', 'omar', 'sara']): Conversation {
   return { id: 'group', kind: 'group', name: 'Team', memberIds, messages: [], sessions: {} }
@@ -28,17 +30,29 @@ test('findMentions matches multi-word names and excludes self', () => {
   assert.deepEqual(found.map((a) => a.id), ['sara'])
 })
 
-test('initialQueue: no mentions means everyone in team order', () => {
-  assert.deepEqual(initialQueue(team, group(), 'hello all').map((a) => a.id), ['khaled', 'omar', 'sara'])
+test('initialQueue: no mentions means everyone in team order (everyone mode)', () => {
+  assert.deepEqual(initialQueue(team, group(), 'hello all')?.map((a) => a.id), ['khaled', 'omar', 'sara'])
+})
+
+test('initialQueue: smart mode defers to the router unless someone is mentioned', () => {
+  assert.equal(initialQueue(smartTeam, group(), 'hello all'), null)
+  assert.deepEqual(initialQueue(smartTeam, group(), '@omar go')?.map((a) => a.id), ['omar'])
+})
+
+test('router.parse accepts ids or names, caps at three, defaults mode to discuss', () => {
+  const r = routerTest.parse('Sure: {"speakers":["OMAR","khaled","sara","nobody","omar"],"mode":"weird"}', team.agents)
+  assert.deepEqual(r?.ids, ['omar', 'khaled', 'sara'])
+  assert.equal(r?.mode, 'discuss')
+  assert.equal(routerTest.parse('no json here', team.agents), null)
 })
 
 test('initialQueue: mentions restrict to the mentioned members', () => {
-  assert.deepEqual(initialQueue(team, group(), '@omar fix the bug').map((a) => a.id), ['omar'])
+  assert.deepEqual(initialQueue(team, group(), '@omar fix the bug')?.map((a) => a.id), ['omar'])
 })
 
 test('initialQueue: a DM always goes to the one member', () => {
   const dm: Conversation = { id: 'dm-omar', kind: 'dm', name: 'OMAR', memberIds: ['user', 'omar'], messages: [], sessions: {} }
-  assert.deepEqual(initialQueue(team, dm, '@khaled?').map((a) => a.id), ['omar'])
+  assert.deepEqual(initialQueue(team, dm, '@khaled?')?.map((a) => a.id), ['omar'])
 })
 
 test('buildTurnPrompt only includes messages since the agent last spoke when it has a session', () => {
