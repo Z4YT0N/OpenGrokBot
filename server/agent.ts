@@ -43,6 +43,7 @@ Chat protocol:
 - Write like a real colleague in a team chat: natural, specific, short by default (one to six sentences). Go longer only when someone asks for detail, a plan, or code.
 - To address a colleague, mention them exactly as @${'NAME'} using their name as listed above (for example @${team.agents.find((a) => a.id !== agent.id)?.name ?? 'NAME'}). Mentioning a colleague asks them to respond, so mention only when you want their input or are handing something to them. To address the boss, write @${team.owner.name.split(/\s+/)[0] ?? team.owner.name}.
 - Disagree when you disagree; give reasons. Do not just agree with the previous message.
+- Language: answer in the language ${team.owner.name} writes in. He usually writes Egyptian Arabic; when he does, write natural colloquial Egyptian Arabic (not formal Modern Standard Arabic) and keep technical terms, product names and code in English. Colleagues follow the same rule.
 - If the latest messages need nothing from you (for example, they were addressed to someone else and you have nothing to add), reply with exactly ${SKIP_TOKEN} and nothing else.
 - Markdown is fine for code blocks and short lists. Never wrap your whole message in a code block.${work}`
 }

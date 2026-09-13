@@ -31,7 +31,7 @@ function groupMessages(messages: Message[]): Group[] {
 export function ChatView({ team, conversation, typing }: ChatViewProps) {
   const scroller = useRef<HTMLDivElement | null>(null)
   const pinned = useRef(true)
-  const [showInfo, setShowInfo] = useState(false)
+  const [showInfo, setShowInfo] = useState(conversation.kind === 'group')
   const groups = groupMessages(conversation.messages)
   const typingPeople = [...typing].filter((id) => !conversation.messages.some((m) => m.authorId === id && m.status === 'streaming')).map((id) => personFor(team, id))
 
@@ -63,8 +63,8 @@ export function ChatView({ team, conversation, typing }: ChatViewProps) {
       <header className="chat-header">
         <AvatarCluster people={people} size={30} />
         <h1 className="chat-title">{conversationTitle(team, conversation)}</h1>
-        <button type="button" className={`icon-button${showInfo ? ' is-active' : ''}`} onClick={() => setShowInfo((v) => !v)} aria-label="Conversation info">
-          <InfoIcon />
+        <button type="button" className={`icon-button${showInfo ? ' is-active' : ''}`} onClick={() => setShowInfo((v) => !v)} aria-label={showInfo ? 'Hide members' : 'Show members'}>
+          {showInfo ? <ChevronsIcon /> : <InfoIcon />}
         </button>
       </header>
       <div className="chat-body">
@@ -101,18 +101,19 @@ export function ChatView({ team, conversation, typing }: ChatViewProps) {
         {showInfo && (
           <aside className="info-panel">
             <h2>Members</h2>
-            {conversation.memberIds.map((id) => {
-              const p = personFor(team, id)
-              return (
-                <div key={id} className="info-member">
-                  <Avatar person={p} size={34} />
-                  <div>
+            {conversation.memberIds
+              .filter((id) => id !== 'user')
+              .map((id) => {
+                const p = personFor(team, id)
+                const busy = typing.has(id)
+                return (
+                  <div key={id} className="info-member" title={p.agent ? `${p.agent.model} · ${p.agent.tools.length ? p.agent.tools.join(', ') : 'chat only'}` : ''}>
+                    <Avatar person={p} size={30} />
                     <div className="info-name">{p.label}</div>
-                    <div className="info-meta">{p.agent ? `${p.agent.model} · ${p.agent.tools.length ? p.agent.tools.join(', ') : 'no tools'}` : team.owner.title}</div>
+                    {busy && <span className="dot" aria-label="typing" />}
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
           </aside>
         )}
       </div>
@@ -135,7 +136,7 @@ function MessageGroup({ team, group }: { team: Team; group: Group }) {
         return (
           <div key={m.id} className="message-row">
             {!mine && <span className="message-avatar">{last && <Avatar person={person} size={28} />}</span>}
-            <div className={`bubble${m.status === 'streaming' ? ' is-streaming' : ''}${m.status === 'error' ? ' is-error' : ''}`}>
+            <div dir="auto" className={`bubble${m.status === 'streaming' ? ' is-streaming' : ''}${m.status === 'error' ? ' is-error' : ''}`}>
               {m.activity && m.activity.length > 0 && (
                 <div className="activity">
                   {m.activity.slice(-4).map((line, j) => (
@@ -152,6 +153,14 @@ function MessageGroup({ team, group }: { team: Team; group: Group }) {
         )
       })}
     </div>
+  )
+}
+
+function ChevronsIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 5l5 5-5 5M11 5l5 5-5 5" />
+    </svg>
   )
 }
 

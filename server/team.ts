@@ -4,6 +4,7 @@ import type { Agent, Team } from '../shared/types.js'
 
 const PERMISSION_MODES = new Set(['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'])
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max'])
+const SHAPES = new Set(['blob', 'round', 'triangle', 'hex', 'drop'])
 
 function fail(msg: string): never {
   throw new Error(`team.json: ${msg}`)
@@ -24,10 +25,13 @@ function parseAgent(raw: unknown, i: number): Agent {
   const effort = r.effort === undefined ? 'medium' : asString(r.effort, `agents[${i}].effort`)
   if (!EFFORTS.has(effort)) fail(`agents[${i}].effort is invalid`)
   const tools = Array.isArray(r.tools) ? r.tools.filter((t): t is string => typeof t === 'string') : []
+  const shape = r.shape === undefined ? 'blob' : asString(r.shape, `agents[${i}].shape`)
+  if (!SHAPES.has(shape)) fail(`agents[${i}].shape must be one of ${[...SHAPES].join(', ')}`)
   const agent: Agent = {
     id,
     name: asString(r.name, `agents[${i}].name`),
     role: asString(r.role, `agents[${i}].role`),
+    shape: shape as Agent['shape'],
     color: asString(r.color, `agents[${i}].color`),
     model: r.model === undefined ? 'claude-opus-5' : asString(r.model, `agents[${i}].model`),
     effort: effort as Agent['effort'],
@@ -36,6 +40,7 @@ function parseAgent(raw: unknown, i: number): Agent {
     permissionMode: permissionMode as Agent['permissionMode'],
   }
   if (typeof r.cwd === 'string' && r.cwd.length > 0) agent.cwd = r.cwd
+  if (typeof r.department === 'string' && r.department.length > 0) agent.department = r.department
   return agent
 }
 

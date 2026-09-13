@@ -5,7 +5,7 @@ import { findMentions } from './mentions.js'
 import type { Store } from './store.js'
 import type { Agent, Conversation, Message, Team } from '../shared/types.js'
 
-const MAX_AGENT_MESSAGES_PER_ROUND = 6
+const MAX_AGENT_MESSAGES_PER_ROUND = 8
 const MAX_TURNS_PER_AGENT_PER_ROUND = 2
 
 interface RoundState {

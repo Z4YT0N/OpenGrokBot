@@ -36,9 +36,11 @@ npm run build
 npm run desktop
 ```
 
+The desktop launcher starts the server itself and opens it in its own window (it also strips `ELECTRON_RUN_AS_NODE`, which VS Code terminals export). If `node_modules/electron/dist` is missing `electron.exe` after install, unzip `%LOCALAPPDATA%electronCache*electron-v*-win32-x64.zip` into that folder and write `electron.exe` into `node_modules/electron/path.txt`.
+
 ## Your team: `team.json`
 
-Every employee is one entry. Edit the file and restart.
+Every employee is one entry. Edit the file and restart. It ships with a ten-person agency: manager, full stack dev, DevOps, ops, backend, sales, QA, growth, design, product.
 
 | field | meaning |
 |---|---|
@@ -55,6 +57,7 @@ Every employee is one entry. Edit the file and restart.
 - In the group, mention someone (`@OMAR`) and only they reply. Say something general and every employee replies in order, each seeing the earlier replies.
 - When an employee mentions a colleague, the colleague replies. An employee speaks at most twice per round and a round is capped at six employee messages, so they never loop forever. Press the stop button to cut a round short.
 - An employee who has nothing to add stays silent (they answer `[skip]` internally).
+- Employees answer in the language you write in (Egyptian Arabic when you write Arabic; technical terms stay English) and the UI renders RTL text correctly.
 - Each employee keeps an Agent SDK session per conversation, so they remember what was said without the whole history being resent.
 
 Conversations live in `data/conversations/*.json`. Delete a file to reset that chat.

@@ -1,11 +1,15 @@
 export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+export type AvatarShape = 'blob' | 'round' | 'triangle' | 'hex' | 'drop'
 
 export interface Agent {
   id: string
   name: string
   role: string
+  /** Short badge shown next to the name in the sidebar (e.g. "Backend"). */
+  department?: string
   color: string
+  shape: AvatarShape
   model: string
   effort: Effort
   personality: string

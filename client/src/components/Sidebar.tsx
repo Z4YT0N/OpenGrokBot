@@ -45,11 +45,12 @@ export function Sidebar({ team, conversations, activeId, busy, onSelect }: Sideb
               onClick={() => onSelect(c.id)}
             >
               <span className="conversation-avatar">
-                <AvatarCluster people={people} size={44} />
+                <AvatarCluster people={people} size={c.kind === 'group' ? 40 : 44} />
               </span>
               <span className="conversation-body">
                 <span className="conversation-row">
                   <span className="conversation-title">{conversationTitle(team, c)}</span>
+                  {c.kind === 'dm' && people[0]?.agent?.department && <span className="badge">{people[0].agent.department}</span>}
                   {last && <span className="conversation-time">{formatTime(last.createdAt)}</span>}
                 </span>
                 <span className="conversation-row">
@@ -79,6 +80,7 @@ export function Sidebar({ team, conversations, activeId, busy, onSelect }: Sideb
 
 function previewOf(team: Team, c: Conversation, authorId: string, text: string): string {
   const clean = text.replace(/\s+/g, ' ').trim()
+  if (clean.length === 0) return `${personFor(team, authorId).name} is typing…`
   if (c.kind === 'dm' || authorId === 'user') return clean
   return `${personFor(team, authorId).name}: ${clean}`
 }

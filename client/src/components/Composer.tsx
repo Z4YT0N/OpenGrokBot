@@ -145,7 +145,7 @@ export function Composer({ team, conversation, busy, onSend, onStop }: ComposerP
           ref={area}
           rows={1}
           value={text}
-          placeholder={`Message ${conversationTitle(team, conversation)}`}
+          placeholder={conversation.memberIds.length > 4 ? `Message the ${team.company} team` : `Message ${conversationTitle(team, conversation)}`}
           onChange={(e) => {
             setText(e.target.value)
             setCaret(e.target.selectionStart)

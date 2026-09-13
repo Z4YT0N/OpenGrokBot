@@ -733,3 +733,61 @@ textarea {
 .chat-header button {
   -webkit-app-region: no-drag;
 }
+
+/* ---------- roster additions ---------- */
+
+.badge {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 1px 7px;
+  line-height: 1.5;
+}
+
+.avatar-cluster-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.avatar-cluster-more {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.info-panel {
+  width: 280px;
+  padding: 16px 14px;
+}
+
+.info-member {
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 10px;
+}
+
+.info-member:hover {
+  background: var(--bg-hover);
+}
+
+.info-member .info-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bubble {
+  unicode-bidi: plaintext;
+}
+
+.bubble[dir='auto'] .activity {
+  direction: ltr;
+}
+
+.composer textarea {
+  unicode-bidi: plaintext;
+}

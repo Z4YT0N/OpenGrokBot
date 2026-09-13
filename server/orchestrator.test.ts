@@ -6,7 +6,7 @@ import { initialQueue } from './orchestrator.js'
 import type { Agent, Conversation, Team } from '../shared/types.js'
 
 function agent(id: string, name: string): Agent {
-  return { id, name, role: 'ROLE', color: '#fff', model: 'claude-opus-5', effort: 'low', personality: 'p', tools: [], permissionMode: 'dontAsk' }
+  return { id, name, role: 'ROLE', color: '#fff', model: 'claude-opus-5', effort: 'low', personality: 'p', tools: [], permissionMode: 'dontAsk', shape: 'blob' }
 }
 
 const khaled = agent('khaled', 'KHALED')
