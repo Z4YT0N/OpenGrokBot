@@ -5,7 +5,7 @@
     "name": "Mahmoud Amr",
     "title": "CEO"
   },
-  "workspace": "e:\\fortune projects",
+  "workspace": ".",
   "agents": [
     {
       "id": "khaled",
@@ -27,7 +27,9 @@
       "mcpServers": [],
       "inheritClaudeSettings": false,
       "autoApproveTools": false,
-      "department": "Management"
+      "department": "Management",
+      "provider": "claude",
+      "muted": false
     },
     {
       "id": "omar",
@@ -49,12 +51,12 @@
         "WebFetch"
       ],
       "permissionMode": "acceptEdits",
-      "mcpServers": [
-        "context7"
-      ],
+      "mcpServers": [],
       "inheritClaudeSettings": false,
       "autoApproveTools": false,
-      "department": "Engineering"
+      "department": "Engineering",
+      "provider": "claude",
+      "muted": false
     },
     {
       "id": "ziad",
@@ -76,7 +78,9 @@
       "mcpServers": [],
       "inheritClaudeSettings": false,
       "autoApproveTools": false,
-      "department": "Ops"
+      "department": "Ops",
+      "provider": "claude",
+      "muted": false
     },
     {
       "id": "sara",
@@ -92,7 +96,9 @@
       "mcpServers": [],
       "inheritClaudeSettings": false,
       "autoApproveTools": false,
-      "department": "Ops"
+      "department": "Ops",
+      "provider": "claude",
+      "muted": false
     },
     {
       "id": "adam",
@@ -112,7 +118,9 @@
       "mcpServers": [],
       "inheritClaudeSettings": false,
       "autoApproveTools": false,
-      "department": "Backend"
+      "department": "Backend",
+      "provider": "claude",
+      "muted": false
     },
     {
       "id": "karim",
@@ -131,7 +139,9 @@
       "mcpServers": [],
       "inheritClaudeSettings": false,
       "autoApproveTools": false,
-      "department": "Sales"
+      "department": "Sales",
+      "provider": "claude",
+      "muted": false
     },
     {
       "id": "hana",
@@ -151,7 +161,9 @@
       "mcpServers": [],
       "inheritClaudeSettings": false,
       "autoApproveTools": false,
-      "department": "QA"
+      "department": "QA",
+      "provider": "claude",
+      "muted": false
     },
     {
       "id": "yasmin",
@@ -170,7 +182,9 @@
       "mcpServers": [],
       "inheritClaudeSettings": false,
       "autoApproveTools": false,
-      "department": "Growth"
+      "department": "Growth",
+      "provider": "claude",
+      "muted": false
     },
     {
       "id": "nour",
@@ -192,7 +206,9 @@
       "mcpServers": [],
       "inheritClaudeSettings": false,
       "autoApproveTools": false,
-      "department": "Design"
+      "department": "Design",
+      "provider": "claude",
+      "muted": false
     },
     {
       "id": "layla",
@@ -214,22 +230,19 @@
       "mcpServers": [],
       "inheritClaudeSettings": false,
       "autoApproveTools": false,
-      "department": "Product"
+      "department": "Product",
+      "provider": "claude",
+      "muted": false
     }
   ],
-  "mcpServers": {
-    "context7": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp@latest"
-      ]
-    }
-  },
+  "mcpServers": {},
   "settings": {
     "maxMessagesPerRound": 8,
     "maxTurnsPerAgentPerRound": 2,
-    "maxTurnsPerReply": 40
-  }
+    "maxTurnsPerReply": 40,
+    "groupMode": "everyone",
+    "language": "auto",
+    "notifications": true
+  },
+  "providers": {}
 }

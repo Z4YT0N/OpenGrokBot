@@ -1,77 +1,116 @@
-# Fortune Office
+# OpenGrok
 
-A company-style chat where AI employees talk to you **and to each other**, running on your Claude subscription. Think Grok Bot's "colleagues debating in a group" feel, but every employee is Claude, with a persona, memory per conversation, real tools in your workspace, MCP servers, and a full settings page with usage and limit monitoring.
+**Your own AI company in a group chat.** Employees with personas, roles and real tools who reply to you *and to each other*, running on the subscriptions you already pay for: Claude (Claude Code login), ChatGPT (Codex CLI login), Google (Gemini CLI login), or any OpenAI-compatible API (Kimi, OpenRouter, DeepSeek, Groq, xAI Grok, Ollama…).
+
+It is the part of xAI/Cursor's *Grok Bot* people actually loved, the "my team is arguing about my product" feeling, without the closed backend, the trial that ends, or the "upgrade to Pro" wall. Open source, local, yours.
+
+![Group chat](docs/screenshots/group-chat.png)
 
 ```
 You:    يا جماعة، عايز نعمل landing page جديدة لخدمة الـ ERP. @LAYLA و @NOUR ابدأوا
 LAYLA:  تمام يا @Mahmoud، هبدأ بس محتاجة أعرف كام حاجة الأول…
 NOUR:   متفقة مع @LAYLA في الأسئلة… بس عندي كام نقطة من ناحية الديزاين
 KARIM:  بصراحة يا @LAYLA، إحنا لسه ماقفلناش deal ERP مع مصنع سعودي…
+OMAR:   › Bash rg --files -g '*.ts'   › Read system/DEPLOY.md
+        الـ outage بتاع النهارده…
 ```
 
-## How it runs on the subscription
+## Why people like it
 
-The server uses `@anthropic-ai/claude-agent-sdk`, which spawns Claude Code. Claude Code uses whatever login you already have (`claude` CLI signed in with your Pro/Max account). No API key is needed, and any `ANTHROPIC_API_KEY` in your environment is deliberately ignored so you are never billed per token by accident. Settings → Claude account shows how it authenticated and your limit windows.
+- **A team, not a chatbot.** A manager, a full-stack dev, DevOps, ops, backend, sales, QA, growth, design and product ship in the box. Each has a personality, a color, an avatar shape and a department badge. Add, duplicate, mute or delete anyone in two clicks.
+- **They talk to each other.** Mention someone (`@OMAR`) and only they answer. Post something general and everyone weighs in, in order, each seeing the earlier replies. When an employee mentions a colleague, the colleague answers. Rounds are capped so nobody loops forever, and an employee with nothing to add stays quiet.
+- **They do real work.** Employees run Claude Code / Codex / Gemini tools in your workspace: read repos, grep, edit files, run commands, search the web. You see the tool activity live under their message. Permissions and working folder are per employee.
+- **Bring your own subscription.** No API keys required. Claude Code, Codex CLI and Gemini CLI use their own logins. Every employee picks a provider and model in their profile, so your manager can be Opus, your dev can be Codex, and your intern can be a free local Ollama model.
+- **MCP marketplace.** GitHub, Playwright (a real browser), Filesystem, Postgres, Supabase, Slack, Notion, Context7, Vercel, Chrome DevTools… one click each, enabled per employee. Or point an employee at your whole `~/.claude` setup.
+- **Usage and limits.** Tokens and API-equivalent cost per message, per conversation, per employee, per model and in total. Your Claude subscription's limit windows (5-hour, weekly, Opus weekly) with reset times.
+- **Group chats, DMs, pins, export.** Extra group chats with any subset of the team, DMs with each employee, pin, rename, clear, export to Markdown, desktop notifications, Arabic RTL, Grok Bot-style dark UI.
 
-Requirements: Node 20+, Claude Code installed and signed in (`claude --version` works).
+| Providers | Usage | Marketplace |
+|---|---|---|
+| ![Providers](docs/screenshots/providers.png) | ![Usage](docs/screenshots/usage.png) | ![Marketplace](docs/screenshots/marketplace.png) |
 
-## Run
+## Install
+
+Requirements: Node 20+ and at least one of these signed in on your machine:
+
+| Provider | How it signs in | Install |
+|---|---|---|
+| Claude (Anthropic) | `claude` CLI, your Claude Pro/Max login | `npm i -g @anthropic-ai/claude-code` then `claude` |
+| Codex (OpenAI) | `codex login`, your ChatGPT/Codex subscription | `npm i -g @openai/codex` then `codex login` |
+| Gemini (Google) | `gemini` once, your Google account (same as Antigravity) | `npm i -g @google/gemini-cli` then `gemini` |
+| Any API | An API key you paste in Settings → Providers | Nothing to install |
 
 ```bash
+git clone https://github.com/Z4YT0N/openGrok
+cd openGrok
 npm install
 npm run build
-npm run desktop    # Electron window (starts the server itself)
+npm run desktop        # desktop window (Electron)
+# or:  npm start       # then open http://127.0.0.1:4310
 ```
 
-Or in the browser:
+First start copies `team.example.json` to `team.json`. Open Settings → General to set your name, company and workspace folder, then say hi to the team.
 
-```bash
-npm run dev        # server on :4310 + Vite client on :5180 (open http://localhost:5180)
-npm start          # serve the built client from :4310
-```
+> Windows note: if `node_modules/electron/dist` has no `electron.exe` after install, unzip the cached `electron-v*-win32-x64.zip` from `%LOCALAPPDATA%\electron\Cache\<hash>\` into that folder and write `electron.exe` into `node_modules/electron/path.txt`. The `npm run desktop` launcher also strips `ELECTRON_RUN_AS_NODE`, which VS Code terminals export.
 
-The desktop launcher strips `ELECTRON_RUN_AS_NODE`, which VS Code terminals export. If `node_modules/electron/dist` has no `electron.exe` after install, unzip the cached `electron-v*-win32-x64.zip` from `%LOCALAPPDATA%\electron\Cache\<hash>\` into that folder and write `electron.exe` into `node_modules/electron/path.txt`.
+## How providers work
 
-## Features
+| | Claude | Codex | Gemini | API |
+|---|---|---|---|---|
+| Runs through | Claude Agent SDK (Claude Code) | `codex exec --json` | `gemini --output-format json` | `POST /chat/completions` |
+| Billing | Subscription login, or API key if you add one | ChatGPT subscription, or `OPENAI_API_KEY` | Google account, or `GEMINI_API_KEY` | Your key |
+| Memory | Resumable session per employee per chat | Resumable thread per employee per chat | Recent transcript each turn | Recent transcript each turn |
+| Tools | Read/Edit/Bash/Glob/Grep/WebSearch/WebFetch/subagents + MCP | Codex's own tools; sandbox follows the employee's tools | Gemini's own tools; approval mode follows the employee's tools | Built-in local tools: read/list/search/edit/write files, run commands, fetch URLs |
+| Effort | ✅ | ✅ (`model_reasoning_effort`) | ignored | ignored |
 
-- **Group chat + a DM per employee**, Grok Bot-style UI: avatar shapes and colors, colored role labels, department badges, mention pills, `+N` clusters, typing indicators, streaming replies, tool-activity lines, Arabic RTL.
-- **Employees talk to each other.** Mention someone (`@OMAR`) and only they reply; say something general and everyone replies in order, each seeing earlier replies; an employee who mentions a colleague gets an answer. Rounds are capped (configurable) and an employee with nothing to add stays silent.
-- **Real work.** Employees get Claude Code tools (Read/Edit/Bash/Glob/Grep/WebSearch/WebFetch/subagents) in a working folder, with a permission mode per employee. The dev actually opens repos and edits code.
-- **MCP servers.** Settings → Marketplace adds GitHub, Playwright, Filesystem, Postgres, Supabase, Slack, Notion, Context7, Vercel, Chrome DevTools and more with one click (or any custom stdio/HTTP server). Enable each per employee in their profile. An employee can also inherit your own `~/.claude` setup (MCP servers, plugins, skills, CLAUDE.md).
-- **Edit everything from the UI.** Click a member (or right-click a DM → Edit profile): name, role, label, color, shape, model, effort, personality, tools, permissions, working folder, MCP servers, auto-approve. Add or delete employees. Changes are saved to `team.json` live.
-- **Usage monitor.** Tokens and API-equivalent cost per message (hover), per conversation (header), per employee (members panel and Settings → Usage), per model, and in total. Silent turns are counted too.
-- **Claude account.** Settings → Claude account shows the login type, Claude Code version, and the subscription limit windows (5-hour, weekly, weekly Opus…) with reset times; "Check now" refreshes with a one-word Haiku turn.
-- **Memory.** Each employee keeps an Agent SDK session per conversation, so they remember what was said without the history being resent.
-- **Language.** Employees answer in the language you write: Egyptian Arabic when you write Arabic, technical terms in English.
+Prompts go to the CLIs over stdin, never as arguments, so Arabic and other non-ASCII text survive Windows shells.
+
+Nothing is sent anywhere except to the provider you chose. API keys live in `team.json` on your disk (git-ignored) and are never returned to the browser.
+
+## Settings
+
+- **General:** company, your name, workspace, group reply mode (everyone / mentions only), reply language (auto / Egyptian Arabic / English), notifications, round caps.
+- **Team:** every employee; click to edit name, role, label, color, shape, provider, model, effort, personality, tools, permissions, working folder, MCP servers, auto-approve, mute.
+- **Providers:** status of each CLI login, API keys, and any number of OpenAI-compatible providers with presets (Kimi, xAI, OpenRouter, DeepSeek, Groq, OpenAI, Mistral, Ollama).
+- **Marketplace:** one-click MCP servers or a custom stdio/HTTP/SSE server.
+- **Usage:** totals, by employee, by conversation, by model.
+- **Claude account:** login type, Claude Code version, limit windows, refresh.
+
+Right-click any chat for Pin, Rename/Edit chat, Edit profile, Mute, Duplicate, Export as Markdown, Clear, Delete.
 
 ## `team.json`
 
-Everything the UI edits lives here (safe to edit by hand too, restart after).
+Everything the UI edits lives here. Safe to edit by hand; restart afterwards.
 
 | field | meaning |
 |---|---|
-| `name`, `role`, `color`, `shape` | Shown in the chat (label is `NAME \| ROLE`). Mention with `@NAME`. Shapes: `blob`, `round`, `triangle`, `hex`, `drop`. |
-| `department` | Small badge next to the name in the sidebar. |
-| `personality` | The persona, second person ("You are …"). |
-| `model`, `effort` | `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5`, … and `low` … `max`. |
-| `tools` | Claude Code tools the employee may use. Empty = chat only. |
-| `permissionMode` | `dontAsk`, `acceptEdits`, `default`, `plan`, `bypassPermissions`. |
-| `cwd` | Working directory for tools. Defaults to `workspace`. |
-| `mcpServers` | Names from the team-level `mcpServers` map this employee can use. |
-| `inheritClaudeSettings` | Load your own Claude Code user settings for this employee. |
-| `autoApproveTools` | Approve every tool call (including MCP) without prompting. |
-| `settings` | `maxMessagesPerRound`, `maxTurnsPerAgentPerRound`, `maxTurnsPerReply`. |
+| `agents[].provider` | Key into `providers` (`claude`, `codex`, `gemini`, or one you added). |
+| `agents[].model`, `effort` | Model id for that provider (`default` = the CLI's own default) and `low` … `max`. |
+| `agents[].tools`, `permissionMode`, `cwd`, `autoApproveTools` | What the employee may do and where. |
+| `agents[].mcpServers`, `inheritClaudeSettings` | Claude only: team MCP servers to enable, and whether to load your `~/.claude` setup. |
+| `agents[].muted` | Only speaks in groups when mentioned. |
+| `providers` | `{ kind, label, apiKey?, baseUrl?, models? }`. Built-ins `claude`, `codex`, `gemini` always exist. |
+| `settings` | `groupMode`, `language`, `notifications`, `maxMessagesPerRound`, `maxTurnsPerAgentPerRound`, `maxTurnsPerReply`. |
 
-Conversations live in `data/conversations/*.json`; right-click a chat → Clear conversation, or delete the file.
+Conversations are JSON files under `data/conversations/`.
 
 ## Layout
 
 ```
-server/        Express + SSE, orchestrator, Agent SDK runner, usage + account tracking, team editing API
-client/        Vite + React UI (chat, profile panel, settings modal, marketplace)
-shared/        Types and catalogs shared by both
-desktop/       Electron shell + launcher
-team.json      Who works here
+server/            Express + SSE, orchestrator, usage + account tracking, team/provider editing API
+server/providers/  claude.ts (Agent SDK), codex.ts, gemini.ts, openai.ts (+ local tools), cli.ts
+client/            Vite + React UI (chat, profile panel, settings, marketplace, providers)
+shared/            Types and catalogs shared by both
+desktop/           Electron shell + launcher
+team.example.json  The starter company
 ```
 
-Tests: `npm test`.
+`npm run dev` for hot reload (server :4310, client :5180). `npm test` for the unit tests.
+
+## Name
+
+Yes, there is an older, unrelated [OpenGrok](https://oracle.github.io/opengrok/) code-search engine by Oracle. This project is "open Grok Bot": the open, provider-agnostic version of the Grok Bot idea. If that ever gets confusing we will rename.
+
+## License
+
+MIT. Built by [Mahmoud Amr](https://github.com/Z4YT0N) at FortuneCode, with Claude.

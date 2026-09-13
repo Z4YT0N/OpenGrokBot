@@ -27,6 +27,7 @@ export function formatRelative(ts: number): string {
 }
 
 export function modelLabel(id: string): string {
+  if (!id.startsWith('claude-')) return id
   return id
     .replace(/^claude-/, '')
     .replace(/-(\d)-(\d)$/, ' $1.$2')

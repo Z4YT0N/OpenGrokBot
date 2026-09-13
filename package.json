@@ -1,9 +1,9 @@
 {
-  "name": "fortune-office",
-  "version": "0.1.0",
+  "name": "opengrok",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "A company-style group chat where AI employees talk to you and to each other, running on your Claude subscription.",
+  "description": "Your own AI company in a group chat: employees with personas that talk to you and to each other, running on the subscriptions you already pay for (Claude, Codex, Gemini) or any API (Kimi, OpenRouter, Ollama…). Grok Bot, but open and yours.",
   "scripts": {
     "dev": "concurrently -k -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "tsx watch server/index.ts",
@@ -32,5 +32,11 @@
     "typescript": "^5.8.0",
     "vite": "^6.3.0"
   },
-  "main": "desktop/main.cjs"
+  "main": "desktop/main.cjs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Z4YT0N/openGrok"
+  },
+  "homepage": "https://github.com/Z4YT0N/openGrok"
 }

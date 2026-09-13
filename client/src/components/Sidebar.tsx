@@ -11,25 +11,27 @@ interface SidebarProps {
   onSelect: (id: string) => void
   onMenu: (conversationId: string, x: number, y: number) => void
   onSettings: () => void
-  onNewEmployee: () => void
+  onNewChat: () => void
 }
 
-export function Sidebar({ team, conversations, activeId, busy, onSelect, onMenu, onSettings, onNewEmployee }: SidebarProps) {
+export function Sidebar({ team, conversations, activeId, busy, onSelect, onMenu, onSettings, onNewChat }: SidebarProps) {
   const [q, setQ] = useState('')
   const owner = personFor(team, 'user')
   const rank = (c: Conversation): number => {
-    if (c.kind === 'group') return -1
+    if (c.pinned) return -2
+    if (c.id === 'group') return -1
+    if (c.kind === 'group') return -0.5
     const agentId = c.memberIds.find((id) => id !== 'user')
     const i = team.agents.findIndex((a) => a.id === agentId)
     return i === -1 ? Number.MAX_SAFE_INTEGER : i
   }
-  const ordered = [...conversations].sort((a, b) => rank(a) - rank(b))
+  const ordered = [...conversations].sort((a, b) => rank(a) - rank(b) || (b.createdAt ?? 0) - (a.createdAt ?? 0))
   const filtered = ordered.filter((c) => conversationTitle(team, c).toLowerCase().includes(q.trim().toLowerCase()))
 
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
-        <button type="button" className="icon-button" title="New employee" aria-label="New employee" onClick={onNewEmployee}>
+        <button type="button" className="icon-button" title="New group chat" aria-label="New group chat" onClick={onNewChat}>
           <PlusIcon />
         </button>
       </div>
@@ -43,6 +45,7 @@ export function Sidebar({ team, conversations, activeId, busy, onSelect, onMenu,
           const people = conversationAvatars(c).map((id) => personFor(team, id))
           const active = c.id === activeId
           const preview = last ? previewOf(team, c, last.authorId, last.text) : c.kind === 'group' ? 'Say hi to the team' : 'Start a conversation'
+          const agent = c.kind === 'dm' ? people[0]?.agent : undefined
           return (
             <button
               key={c.id}
@@ -59,8 +62,12 @@ export function Sidebar({ team, conversations, activeId, busy, onSelect, onMenu,
               </span>
               <span className="conversation-body">
                 <span className="conversation-row">
-                  <span className="conversation-title">{conversationTitle(team, c)}</span>
-                  {c.kind === 'dm' && people[0]?.agent?.department && <span className="badge">{people[0].agent.department}</span>}
+                  <span className="conversation-title">
+                    {c.pinned && <PinIcon />}
+                    {conversationTitle(team, c)}
+                  </span>
+                  {agent?.department && <span className="badge">{agent.department}</span>}
+                  {agent?.muted && <span className="badge" title="Muted in groups">muted</span>}
                   {last && <span className="conversation-time">{formatTime(last.createdAt)}</span>}
                 </span>
                 <span className="conversation-row">
@@ -113,6 +120,14 @@ function PlusIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <path d="M10 4v12M4 10h12" />
+    </svg>
+  )
+}
+
+function PinIcon() {
+  return (
+    <svg className="pin-icon" width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M12 2l6 6-2 1-3-1-3 3 1 4-1 1-4-4-4 4-1-1 4-4-4-4 1-1 4 1 3-3-1-3z" />
     </svg>
   )
 }

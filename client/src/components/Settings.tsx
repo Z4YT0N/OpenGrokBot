@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { RATE_LIMIT_LABELS } from '../../../shared/catalog'
-import type { AccountStatus, Conversation, McpServerDef, Team, UsageSummary, UsageTotals } from '../../../shared/types'
+import type { AccountStatus, Conversation, McpServerDef, Team, TeamSettings, UsageSummary, UsageTotals } from '../../../shared/types'
 import { deleteMcpServer, putMcpServer, putSettings, refreshAccount } from '../api'
 import { formatCost, formatRelative, formatTokens, modelLabel } from '../format'
 import { MARKETPLACE, type MarketplaceItem } from '../marketplace'
 import { conversationTitle, personFor } from '../people'
 import { Avatar } from './Avatar'
+import { Providers } from './Providers'
 
-export type SettingsSection = 'general' | 'team' | 'marketplace' | 'usage' | 'account'
+export type SettingsSection = 'general' | 'team' | 'providers' | 'marketplace' | 'usage' | 'account'
 
 interface SettingsProps {
   team: Team
@@ -23,6 +24,7 @@ interface SettingsProps {
 const NAV: { id: SettingsSection; label: string; icon: string }[] = [
   { id: 'general', label: 'General', icon: '⚙️' },
   { id: 'team', label: 'Team', icon: '👥' },
+  { id: 'providers', label: 'Providers', icon: '🔌' },
   { id: 'marketplace', label: 'Marketplace', icon: '🧩' },
   { id: 'usage', label: 'Usage', icon: '📊' },
   { id: 'account', label: 'Claude account', icon: '🔑' },
@@ -49,6 +51,7 @@ export function Settings(props: SettingsProps) {
           </button>
           {section === 'general' && <General {...props} />}
           {section === 'team' && <TeamSection {...props} />}
+          {section === 'providers' && <Providers team={props.team} />}
           {section === 'marketplace' && <Marketplace {...props} />}
           {section === 'usage' && <Usage {...props} />}
           {section === 'account' && <AccountSection {...props} />}
@@ -114,6 +117,22 @@ function General({ team }: SettingsProps) {
       </Card>
       <h4>Conversation rules</h4>
       <Card>
+        <Row title="When I post in a group without mentioning anyone" hint="Everyone: all unmuted members reply in order. Mentions only: just the first member (your manager) replies and pulls others in with @mentions.">
+          <select value={settings.groupMode} onChange={(e) => setSettings({ ...settings, groupMode: e.target.value as TeamSettings['groupMode'] })}>
+            <option value="everyone">Everyone replies</option>
+            <option value="mentions-only">Mentions only</option>
+          </select>
+        </Row>
+        <Row title="Employees reply in" hint="Auto mirrors whatever language you write in.">
+          <select value={settings.language} onChange={(e) => setSettings({ ...settings, language: e.target.value as TeamSettings['language'] })}>
+            <option value="auto">Auto (match me)</option>
+            <option value="ar">Egyptian Arabic</option>
+            <option value="en">English</option>
+          </select>
+        </Row>
+        <Row title="Desktop notifications" hint="Notify when an employee finishes a reply while you are looking elsewhere.">
+          <input type="checkbox" className="toggle" checked={settings.notifications} onChange={(e) => setSettings({ ...settings, notifications: e.target.checked })} />
+        </Row>
         <Row title="Max employee messages per round" hint="After you post in the group, at most this many replies before the floor returns to you.">
           <input type="number" min={1} max={30} value={settings.maxMessagesPerRound} onChange={(e) => setSettings({ ...settings, maxMessagesPerRound: Number(e.target.value) })} />
         </Row>
@@ -140,7 +159,7 @@ function TeamSection({ team, usage, onEditAgent }: SettingsProps) {
   return (
     <>
       <h1>Team</h1>
-      <p className="lead">Every employee is a Claude Code agent with its own persona, model, effort, tools and memory. Click one to edit.</p>
+      <p className="lead">Every employee is an agent with its own persona, provider (Claude, Codex, Gemini or an API), model, effort, tools and memory. Click one to edit.</p>
       <Card>
         {team.agents.map((a) => {
           const p = personFor(team, a.id)
@@ -154,7 +173,7 @@ function TeamSection({ team, usage, onEditAgent }: SettingsProps) {
                   {a.department && <span className="badge">{a.department}</span>}
                 </div>
                 <div className="row-hint">
-                  {modelLabel(a.model)} · {a.effort} effort · {a.tools.length ? a.tools.join(', ') : 'chat only'}
+                  {team.providers[a.provider]?.label ?? a.provider} · {modelLabel(a.model)} · {a.effort} effort · {a.tools.length ? a.tools.join(', ') : 'chat only'}{a.muted ? ' · muted' : ''}
                   {a.mcpServers.length > 0 && ` · MCP: ${a.mcpServers.join(', ')}`}
                 </div>
               </div>

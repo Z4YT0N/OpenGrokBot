@@ -23,6 +23,7 @@ export function conversationTitle(team: Team, c: Conversation): string {
     const other = c.memberIds.find((id) => id !== 'user')
     return other ? personFor(team, other).label : c.name
   }
+  if (c.id !== 'group' && c.name) return c.name
   return c.memberIds.map((id) => personFor(team, id).label).join(', ')
 }
 

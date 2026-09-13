@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { EFFORTS, MODELS, PERMISSION_MODES, SHAPES, TOOLS } from '../../../shared/catalog'
-import type { Agent, AvatarShape, Effort, PermissionMode, Team, UsageTotals } from '../../../shared/types'
-import { createAgent, deleteAgent, updateAgent } from '../api'
+import { EFFORTS, MODELS, MODEL_SUGGESTIONS, PERMISSION_MODES, PROVIDER_KINDS, SHAPES, TOOLS } from '../../../shared/catalog'
+import type { Agent, AvatarShape, Effort, PermissionMode, ProviderStatus, Team, UsageTotals } from '../../../shared/types'
+import { createAgent, deleteAgent, duplicateAgent, providerStatuses, updateAgent } from '../api'
 import { formatCost, formatTokens } from '../format'
 import { personFor } from '../people'
 import { Avatar } from './Avatar'
@@ -24,6 +24,7 @@ function blank(team: Team): Agent {
     role: '',
     color: PALETTE[team.agents.length % PALETTE.length] ?? '#2f7ef5',
     shape: 'blob',
+    provider: 'claude',
     model: 'claude-opus-5',
     effort: 'medium',
     personality: '',
@@ -32,6 +33,7 @@ function blank(team: Team): Agent {
     mcpServers: [],
     inheritClaudeSettings: false,
     autoApproveTools: false,
+    muted: false,
   }
 }
 
@@ -48,6 +50,7 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [statuses, setStatuses] = useState<ProviderStatus[]>([])
 
   useEffect(() => {
     setDraft(existing ?? blank(team))
@@ -56,12 +59,28 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId])
 
+  useEffect(() => {
+    providerStatuses().then(setStatuses).catch(() => setStatuses([]))
+  }, [team.providers])
+
   const set = <K extends keyof Agent>(key: K, value: Agent[K]) => setDraft((d) => ({ ...d, [key]: value }))
   const toggleList = (key: 'tools' | 'mcpServers', item: string) =>
     setDraft((d) => ({ ...d, [key]: d[key].includes(item) ? d[key].filter((x) => x !== item) : [...d[key], item] }))
 
+  const provider = team.providers[draft.provider] ?? team.providers.claude
+  const kind = provider?.kind ?? 'claude'
+  const status = statuses.find((s) => s.id === draft.provider)
+  const modelOptions = [...new Set([...(provider?.models ?? []), ...(status?.models ?? []), ...MODEL_SUGGESTIONS[kind]])]
+  const availableTools = TOOLS.filter((t) => t.kinds.includes(kind))
+
   const preview = personFor({ ...team, agents: [...team.agents.filter((a) => a.id !== draft.id), { ...draft, id: draft.id || 'new' }] }, draft.id || 'new')
   const dirty = JSON.stringify(draft) !== JSON.stringify(existing ?? blank(team))
+
+  const changeProvider = (id: string) => {
+    const next = team.providers[id]
+    const suggestions = next ? [...(next.models ?? []), ...MODEL_SUGGESTIONS[next.kind]] : []
+    setDraft((d) => ({ ...d, provider: id, model: suggestions[0] ?? d.model, tools: d.tools.filter((t) => TOOLS.find((x) => x.id === t)?.kinds.includes(next?.kind ?? 'claude')) }))
+  }
 
   const save = async () => {
     setSaving(true)
@@ -78,6 +97,19 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
         await createAgent({ ...body, id })
         onSaved(id)
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const duplicate = async () => {
+    if (!existing) return
+    setSaving(true)
+    try {
+      const { agent } = await duplicateAgent(existing.id)
+      onSaved(agent.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -113,7 +145,9 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
       <div className="profile-body">
         <div className="profile-hero">
           <Avatar person={preview} size={72} />
-          <div className="profile-hero-name">{draft.name || 'NAME'} | {draft.role || 'ROLE'}</div>
+          <div className="profile-hero-name">
+            {draft.name || 'NAME'} | {draft.role || 'ROLE'}
+          </div>
           {usage && usage.messages > 0 && (
             <div className="profile-hero-meta">
               {usage.messages} msgs · {formatTokens(usage.inputTokens + usage.cacheReadTokens + usage.cacheCreationTokens)} in · {formatTokens(usage.outputTokens)} out · {formatCost(usage.costUsd)}
@@ -151,22 +185,42 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
               ))}
             </div>
           </div>
+          <label className="toggle-row">
+            <div>
+              <div className="toggle-title">Muted in groups</div>
+              <div className="toggle-hint">Only speaks in a group chat when someone mentions them.</div>
+            </div>
+            <input type="checkbox" className="toggle" checked={draft.muted} onChange={(e) => set('muted', e.target.checked)} />
+          </label>
         </section>
 
         <section className="form-section">
           <h3>Brain</h3>
           <label className="field">
-            <span>Model</span>
-            <select value={MODELS.some((m) => m.id === draft.model) ? draft.model : 'custom'} onChange={(e) => set('model', e.target.value === 'custom' ? draft.model : e.target.value)}>
-              {MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
+            <span>Provider</span>
+            <select value={draft.provider} onChange={(e) => changeProvider(e.target.value)}>
+              {Object.entries(team.providers).map(([id, p]) => (
+                <option key={id} value={id}>
+                  {p.label}
                 </option>
               ))}
-              <option value="custom">Custom id…</option>
             </select>
-            {!MODELS.some((m) => m.id === draft.model) && <input value={draft.model} onChange={(e) => set('model', e.target.value)} placeholder="claude-…" />}
-            <small>{MODELS.find((m) => m.id === draft.model)?.hint ?? 'Any model id Claude Code accepts.'}</small>
+            <small>
+              {PROVIDER_KINDS.find((k) => k.id === kind)?.hint}
+              {status && <span className={status.ok ? ' ok' : ' bad'}> · {status.detail}</span>}
+            </small>
+          </label>
+          <label className="field">
+            <span>Model</span>
+            <input list={`models-${draft.provider}`} value={draft.model} onChange={(e) => set('model', e.target.value)} placeholder={kind === 'claude' ? 'claude-opus-5' : 'model id'} />
+            <datalist id={`models-${draft.provider}`}>
+              {modelOptions.map((m) => (
+                <option key={m} value={m}>
+                  {MODELS.find((x) => x.id === m)?.label ?? m}
+                </option>
+              ))}
+            </datalist>
+            <small>{MODELS.find((m) => m.id === draft.model)?.hint ?? (kind === 'claude' ? 'Any model id Claude Code accepts.' : kind === 'openai' ? 'Any model the API serves. Test the provider in Settings to list them.' : '"default" uses the CLI’s own configured model.')}</small>
           </label>
           <label className="field">
             <span>Effort</span>
@@ -177,7 +231,7 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
                 </button>
               ))}
             </div>
-            <small>How hard the model thinks per reply. Low is fast and cheap on your limits; max is for the hardest work.</small>
+            <small>How hard the model thinks per reply. Applies to Claude and Codex; other providers ignore it.</small>
           </label>
           <label className="field">
             <span>Personality</span>
@@ -188,13 +242,15 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
         <section className="form-section">
           <h3>Tools</h3>
           <div className="checks">
-            {TOOLS.map((t) => (
+            {availableTools.map((t) => (
               <label key={t.id} className="check" title={t.hint}>
                 <input type="checkbox" checked={draft.tools.includes(t.id)} onChange={() => toggleList('tools', t.id)} />
                 <span>{t.label}</span>
               </label>
             ))}
           </div>
+          {kind === 'openai' && <p className="hint">API employees run these tools locally through OpenGrok (file read/search/edit, shell, web fetch).</p>}
+          {(kind === 'codex' || kind === 'gemini') && <p className="hint">Edit/Write/Bash switch the CLI sandbox to workspace-write; otherwise it runs read-only.</p>}
           <label className="field">
             <span>Permissions</span>
             <select value={draft.permissionMode} onChange={(e) => set('permissionMode', e.target.value as PermissionMode)}>
@@ -210,55 +266,62 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
             <span>Working folder</span>
             <input value={draft.cwd ?? ''} onChange={(e) => set('cwd', e.target.value || undefined)} placeholder={team.workspace} />
           </label>
-        </section>
-
-        <section className="form-section">
-          <h3>MCP servers</h3>
-          {Object.keys(team.mcpServers).length === 0 ? (
-            <p className="hint">None configured yet. Add some from Settings → Marketplace.</p>
-          ) : (
-            <div className="checks">
-              {Object.keys(team.mcpServers).map((name) => (
-                <label key={name} className="check">
-                  <input type="checkbox" checked={draft.mcpServers.includes(name)} onChange={() => toggleList('mcpServers', name)} />
-                  <span>{name}</span>
-                </label>
-              ))}
-            </div>
-          )}
-          <label className="toggle-row">
-            <div>
-              <div className="toggle-title">Use my Claude Code setup</div>
-              <div className="toggle-hint">Loads your own user settings: MCP servers, plugins, skills and CLAUDE.md from ~/.claude.</div>
-            </div>
-            <input type="checkbox" className="toggle" checked={draft.inheritClaudeSettings} onChange={(e) => set('inheritClaudeSettings', e.target.checked)} />
-          </label>
           <label className="toggle-row">
             <div>
               <div className="toggle-title">Auto-approve every tool</div>
-              <div className="toggle-hint">Never block on permission prompts, including MCP tools. Combine with a scoped working folder.</div>
+              <div className="toggle-hint">Never block on permission prompts (Claude: incl. MCP; Codex: full-access sandbox; API: paths outside the folder).</div>
             </div>
             <input type="checkbox" className="toggle" checked={draft.autoApproveTools} onChange={(e) => set('autoApproveTools', e.target.checked)} />
           </label>
         </section>
 
+        {kind === 'claude' && (
+          <section className="form-section">
+            <h3>MCP servers</h3>
+            {Object.keys(team.mcpServers).length === 0 ? (
+              <p className="hint">None configured yet. Add some from Settings → Marketplace.</p>
+            ) : (
+              <div className="checks">
+                {Object.keys(team.mcpServers).map((name) => (
+                  <label key={name} className="check">
+                    <input type="checkbox" checked={draft.mcpServers.includes(name)} onChange={() => toggleList('mcpServers', name)} />
+                    <span>{name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <label className="toggle-row">
+              <div>
+                <div className="toggle-title">Use my Claude Code setup</div>
+                <div className="toggle-hint">Loads your own user settings: MCP servers, plugins, skills and CLAUDE.md from ~/.claude.</div>
+              </div>
+              <input type="checkbox" className="toggle" checked={draft.inheritClaudeSettings} onChange={(e) => set('inheritClaudeSettings', e.target.checked)} />
+            </label>
+          </section>
+        )}
+
         {existing && (
           <section className="form-section danger">
-            {confirmDelete ? (
-              <div className="confirm">
-                <span>Remove {existing.name} and their DM from the sidebar?</span>
-                <button type="button" className="btn btn-danger" onClick={() => void remove()} disabled={saving}>
-                  Delete
-                </button>
-                <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button type="button" className="btn btn-danger-ghost" onClick={() => setConfirmDelete(true)}>
-                Delete employee
+            <div className="confirm">
+              <button type="button" className="btn" onClick={() => void duplicate()} disabled={saving}>
+                Duplicate
               </button>
-            )}
+              {confirmDelete ? (
+                <>
+                  <span>Remove {existing.name}?</span>
+                  <button type="button" className="btn btn-danger" onClick={() => void remove()} disabled={saving}>
+                    Delete
+                  </button>
+                  <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="btn btn-danger-ghost" onClick={() => setConfirmDelete(true)}>
+                  Delete employee
+                </button>
+              )}
+            </div>
           </section>
         )}
       </div>

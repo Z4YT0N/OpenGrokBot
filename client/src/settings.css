@@ -841,3 +841,89 @@ select {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ---------- v3: providers, new chat, toasts ---------- */
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.status-dot.ok {
+  background: #22c55e;
+}
+
+.status-dot.bad {
+  background: var(--danger);
+}
+
+.field small .ok {
+  color: #22c55e;
+}
+
+.field small .bad {
+  color: var(--danger);
+}
+
+.member-picks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.member-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.member-pick.is-active {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: var(--bg-active);
+}
+
+.link {
+  color: var(--accent);
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.pin-icon {
+  margin-right: 5px;
+  color: var(--text-muted);
+  vertical-align: -1px;
+}
+
+.toast {
+  position: absolute;
+  bottom: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #3a1d1d;
+  border: 1px solid rgba(255, 92, 92, 0.4);
+  color: #ffb4b4;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  z-index: 30;
+  max-width: 80%;
+}
+
+.toast button {
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+}

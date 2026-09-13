@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import type { Account } from './account.js'
-import { runAgentTurn } from './agent.js'
+import { providerKeepsSession, runAgentTurn } from './agent.js'
 import { emit } from './events.js'
 import { findMentions } from './mentions.js'
 import type { Store } from './store.js'
 import { summarizeUsage } from './usage.js'
-import type { Agent, Conversation, Message, Team } from '../shared/types.js'
+import type { Agent, Conversation, Message, ProviderDef, Team } from '../shared/types.js'
 
 interface RoundState {
   running: boolean
@@ -18,8 +18,13 @@ export function initialQueue(team: Team, conversation: Conversation, userText: s
   const members = team.agents.filter((a) => conversation.memberIds.includes(a.id))
   if (conversation.kind === 'dm') return members
   const mentioned = findMentions(userText, members)
-  return mentioned.length > 0 ? mentioned : members
+  if (mentioned.length > 0) return mentioned
+  const unmuted = members.filter((a) => !a.muted)
+  if (team.settings.groupMode === 'mentions-only') return unmuted.slice(0, 1)
+  return unmuted
 }
+
+const FALLBACK_PROVIDER: ProviderDef = { kind: 'claude', label: 'Claude (subscription)' }
 
 export class Orchestrator {
   private readonly rounds = new Map<string, RoundState>()
@@ -69,12 +74,23 @@ export class Orchestrator {
     state.abort?.abort()
   }
 
-  /** Runs a minimal turn just to refresh the account's rate-limit picture. */
+  /** Runs a minimal Claude turn just to refresh the account's rate-limit picture. */
   async probeAccount(): Promise<void> {
     const team = this.getTeam()
-    const agent = team.agents[0]
-    if (!agent) return
-    const probe: Agent = { ...agent, id: 'probe', name: 'PROBE', model: 'claude-haiku-4-5', effort: 'low', tools: [], mcpServers: [], inheritClaudeSettings: false, autoApproveTools: false, personality: 'Reply with the single word OK.' }
+    const base = team.agents[0]
+    const probe: Agent = {
+      ...(base ?? { id: 'x', name: 'X', role: 'X', color: '#fff', shape: 'blob', permissionMode: 'dontAsk', effort: 'low', personality: '', tools: [], mcpServers: [], inheritClaudeSettings: false, autoApproveTools: false, muted: false, model: '', provider: 'claude' }),
+      id: 'probe',
+      name: 'PROBE',
+      provider: 'claude',
+      model: 'claude-haiku-4-5',
+      effort: 'low',
+      tools: [],
+      mcpServers: [],
+      inheritClaudeSettings: false,
+      autoApproveTools: false,
+      personality: 'Reply with the single word OK.',
+    }
     const conversation: Conversation = {
       id: 'probe',
       kind: 'dm',
@@ -87,6 +103,7 @@ export class Orchestrator {
       team: { ...team, agents: [probe] },
       conversation,
       agent: probe,
+      provider: team.providers.claude ?? FALLBACK_PROVIDER,
       sessionId: undefined,
       signal: new AbortController().signal,
       handlers: {
@@ -157,6 +174,7 @@ export class Orchestrator {
     const conversation = this.store.get(conversationId)
     if (!conversation) return ''
     const team = this.getTeam()
+    const provider = team.providers[agent.provider] ?? FALLBACK_PROVIDER
     const message: Message = {
       id: randomUUID(),
       conversationId,
@@ -175,11 +193,16 @@ export class Orchestrator {
       emit({ type: 'message:start', message })
     }
 
+    // Sessions are per provider kind: switching an employee to another provider starts fresh.
+    const sessionKey = `${agent.id}@${provider.kind}`
+    const sessionId = providerKeepsSession(provider.kind) ? conversation.sessions[sessionKey] : undefined
+
     const result = await runAgentTurn({
       team,
       conversation,
       agent,
-      sessionId: conversation.sessions[agent.id],
+      provider,
+      sessionId,
       signal,
       handlers: {
         onDelta: (delta) => {
@@ -192,8 +215,8 @@ export class Orchestrator {
           message.activity?.push(line)
           emit({ type: 'message:activity', conversationId, messageId: message.id, line })
         },
-        onSession: (sessionId) => {
-          this.store.setSession(conversationId, agent.id, sessionId)
+        onSession: (id) => {
+          this.store.setSession(conversationId, sessionKey, id)
         },
         onInit: (src, ver) => {
           if (this.account.noteInit(src, ver)) emit({ type: 'account', account: this.account.get() })
@@ -206,9 +229,9 @@ export class Orchestrator {
     })
     emit({ type: 'typing', conversationId, agentId: agent.id, on: false })
 
-    if (result.error && /session|resume|not found|No conversation found/i.test(result.error) && conversation.sessions[agent.id]) {
+    if (result.error && /session|resume|not found|No conversation found|thread/i.test(result.error) && sessionId) {
       // The stored session is gone (e.g. transcript deleted). Forget it and retry once fresh.
-      this.store.clearSession(conversationId, agent.id)
+      this.store.clearSession(conversationId, sessionKey)
       if (!started) return this.turn(conversationId, agent, signal)
     }
 

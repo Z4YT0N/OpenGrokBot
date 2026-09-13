@@ -41,7 +41,7 @@ async function createWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#111111',
-    title: 'Fortune Office',
+    title: 'OpenGrok',
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
     titleBarOverlay: { color: '#141414', symbolColor: '#8f8f8f', height: 40 },

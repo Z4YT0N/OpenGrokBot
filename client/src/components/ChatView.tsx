@@ -126,7 +126,7 @@ export function ChatView({ team, conversation, typing, usage, onEditAgent, profi
                       <span className="info-name">{p.label}</span>
                       {a && (
                         <span className="info-meta">
-                          {modelLabel(a.model)} · {a.effort}
+                          {(team.providers[a.provider]?.kind ?? 'claude') === 'claude' ? '' : `${team.providers[a.provider]?.label.split(' ')[0] ?? a.provider} · `}{modelLabel(a.model)} · {a.effort}{a.muted ? ' · muted' : ''}
                           {u ? ` · ${formatTokens(u.inputTokens + u.cacheReadTokens + u.cacheCreationTokens + u.outputTokens)} tok` : ''}
                         </span>
                       )}

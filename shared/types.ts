@@ -6,6 +6,26 @@ export type McpServerDef =
   | { type: 'stdio'; command: string; args?: string[]; env?: Record<string, string> }
   | { type: 'http' | 'sse'; url: string; headers?: Record<string, string> }
 
+/**
+ * Where an employee's brain runs.
+ * - claude: Claude Code via the Agent SDK. Your Claude subscription login by default, or an API key.
+ * - codex:  OpenAI Codex CLI (`codex exec`). Your ChatGPT/Codex subscription login.
+ * - gemini: Google Gemini CLI. Your Google account (the same one Antigravity uses).
+ * - openai: any OpenAI-compatible chat API: Kimi/Moonshot, OpenRouter, DeepSeek, Groq, xAI, Ollama…
+ */
+export type ProviderKind = 'claude' | 'codex' | 'gemini' | 'openai'
+
+export interface ProviderDef {
+  kind: ProviderKind
+  label: string
+  /** API key. For `claude` it switches from subscription login to API billing. */
+  apiKey?: string
+  /** Base URL for `openai` providers (e.g. https://api.moonshot.ai/v1). */
+  baseUrl?: string
+  /** Model ids offered in the picker. Free text is always allowed. */
+  models?: string[]
+}
+
 export interface Agent {
   id: string
   name: string
@@ -14,6 +34,8 @@ export interface Agent {
   department?: string
   color: string
   shape: AvatarShape
+  /** Key into team.providers. Defaults to "claude". */
+  provider: string
   model: string
   effort: Effort
   personality: string
@@ -21,12 +43,14 @@ export interface Agent {
   permissionMode: PermissionMode
   /** Working directory for tools. Defaults to the team workspace. */
   cwd?: string
-  /** Names of team-level MCP servers this employee can use. */
+  /** Names of team-level MCP servers this employee can use (claude provider). */
   mcpServers: string[]
   /** Load the owner's own Claude Code user settings (MCP servers, plugins, skills, CLAUDE.md). */
   inheritClaudeSettings: boolean
   /** Approve every tool call (including MCP tools) without prompting. */
   autoApproveTools: boolean
+  /** Muted employees only speak in a group when mentioned. */
+  muted: boolean
 }
 
 export interface Owner {
@@ -35,6 +59,9 @@ export interface Owner {
   title: string
 }
 
+export type GroupMode = 'everyone' | 'mentions-only'
+export type ReplyLanguage = 'auto' | 'ar' | 'en'
+
 export interface TeamSettings {
   /** Max employee messages per owner message in a group. */
   maxMessagesPerRound: number
@@ -42,6 +69,12 @@ export interface TeamSettings {
   maxTurnsPerAgentPerRound: number
   /** Max agentic tool-loop turns inside one employee reply. */
   maxTurnsPerReply: number
+  /** everyone: all unmuted members reply to a general message. mentions-only: only the first member replies unless someone is mentioned. */
+  groupMode: GroupMode
+  /** Language employees reply in. auto = mirror the owner. */
+  language: ReplyLanguage
+  /** Desktop notifications when an employee finishes a reply. */
+  notifications: boolean
 }
 
 export interface Team {
@@ -49,6 +82,7 @@ export interface Team {
   owner: Owner
   workspace: string
   agents: Agent[]
+  providers: Record<string, ProviderDef>
   mcpServers: Record<string, McpServerDef>
   settings: TeamSettings
 }
@@ -86,10 +120,12 @@ export interface Conversation {
   name: string
   memberIds: string[]
   messages: Message[]
-  /** Agent SDK session id per agent, so each employee keeps memory of this conversation. */
+  /** Provider session id per agent, so each employee keeps memory of this conversation. */
   sessions: Record<string, string>
   /** Usage from turns that produced no visible message (the employee chose to stay silent). */
   silent?: { agentId: string; usage: MessageUsage; at: number }[]
+  pinned?: boolean
+  createdAt?: number
 }
 
 export interface UsageTotals {
@@ -125,6 +161,14 @@ export interface AccountStatus {
   claudeCodeVersion?: string
   windows: Partial<Record<RateLimitType, RateLimitWindow>>
   updatedAt?: number
+}
+
+export interface ProviderStatus {
+  id: string
+  kind: ProviderKind
+  ok: boolean
+  detail: string
+  models?: string[]
 }
 
 export interface AppState {

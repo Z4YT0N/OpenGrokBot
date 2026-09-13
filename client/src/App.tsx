@@ -1,12 +1,14 @@
-import { useEffect, useReducer, useState } from 'react'
-import type { ServerEvent } from '../../shared/types'
-import { clearConversation, fetchState, sendMessage, stopRound } from './api'
+import { useEffect, useReducer, useRef, useState } from 'react'
+import type { Conversation, ServerEvent } from '../../shared/types'
+import { clearConversation, deleteConversation, duplicateAgent, exportUrl, fetchState, sendMessage, stopRound, updateAgent, updateConversation } from './api'
 import { ChatView } from './components/ChatView'
 import { Composer } from './components/Composer'
 import { Menu, type MenuItem } from './components/Menu'
+import { NewChat } from './components/NewChat'
 import { Profile } from './components/Profile'
 import { Settings, type SettingsSection } from './components/Settings'
 import { Sidebar } from './components/Sidebar'
+import { personFor } from './people'
 import { initialState, reducer } from './state'
 
 interface MenuState {
@@ -23,6 +25,10 @@ export function App() {
   /** undefined = closed, null = new employee, string = editing that employee */
   const [profile, setProfile] = useState<string | null | undefined>(undefined)
   const [menu, setMenu] = useState<MenuState | null>(null)
+  /** undefined = closed, null = new chat, Conversation = editing */
+  const [chatEditor, setChatEditor] = useState<Conversation | null | undefined>(undefined)
+  const latest = useRef({ activeId, state })
+  latest.current = { activeId, state }
 
   useEffect(() => {
     let alive = true
@@ -42,7 +48,9 @@ export function App() {
     es.onerror = () => dispatch({ type: 'connected', connected: false })
     es.onmessage = (e) => {
       try {
-        dispatch({ type: 'event', event: JSON.parse(e.data) as ServerEvent })
+        const event = JSON.parse(e.data) as ServerEvent
+        dispatch({ type: 'event', event })
+        maybeNotify(event)
       } catch {
         // ignore malformed frames
       }
@@ -53,39 +61,84 @@ export function App() {
     }
   }, [])
 
-  const conversation = state.conversations.find((c) => c.id === activeId) ?? state.conversations[0]
+  const maybeNotify = (event: ServerEvent) => {
+    if (event.type !== 'message:done' || event.message.authorId === 'user' || event.message.status !== 'done') return
+    const { state: s, activeId: current } = latest.current
+    if (!s.team?.settings.notifications) return
+    const away = document.hidden || !document.hasFocus() || event.message.conversationId !== current
+    if (!away) return
+    if (typeof Notification === 'undefined') return
+    const show = () => {
+      const person = s.team ? personFor(s.team, event.message.authorId) : null
+      const n = new Notification(person?.label ?? 'Reply', { body: event.message.text.slice(0, 160), silent: true })
+      n.onclick = () => {
+        window.focus()
+        setActiveId(event.message.conversationId)
+      }
+    }
+    if (Notification.permission === 'granted') show()
+    else if (Notification.permission === 'default') void Notification.requestPermission().then((p) => p === 'granted' && show())
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (menu) setMenu(null)
+      else if (chatEditor !== undefined) setChatEditor(undefined)
+      else if (settings) setSettings(null)
+      else if (profile !== undefined) setProfile(undefined)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menu, chatEditor, settings, profile])
+
+  const conversation = state.conversations.find((c) => c.id === activeId) ?? state.conversations.find((c) => c.id === 'group') ?? state.conversations[0]
 
   if (!state.team || !conversation) {
     return (
       <div className="boot">
-        {error ? <p className="boot-error">Could not reach the office server: {error}</p> : <p>Opening the office…</p>}
+        {error ? <p className="boot-error">Could not reach the OpenGrok server: {error}</p> : <p>Opening the office…</p>}
       </div>
     )
   }
 
   const team = state.team
   const busy = state.busy.has(conversation.id)
+  const fail = (err: unknown) => setError(err instanceof Error ? err.message : String(err))
 
   const menuItems = (conversationId: string): MenuItem[] => {
     const c = state.conversations.find((x) => x.id === conversationId)
-    const agentId = c?.kind === 'dm' ? c.memberIds.find((id) => id !== 'user') : undefined
+    if (!c) return []
+    const agentId = c.kind === 'dm' ? c.memberIds.find((id) => id !== 'user') : undefined
+    const agent = agentId ? team.agents.find((a) => a.id === agentId) : undefined
     const items: MenuItem[] = []
-    if (agentId) items.push({ label: 'Edit profile', onClick: () => setProfile(agentId) })
-    items.push({
-      label: 'Clear conversation',
-      divider: items.length > 0,
-      onClick: () => {
-        void clearConversation(conversationId).catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
-      },
-    })
-    if (agentId) {
+    items.push({ label: c.pinned ? 'Unpin' : 'Pin', onClick: () => void updateConversation(c.id, { pinned: !c.pinned }).catch(fail) })
+    if (c.kind === 'group') items.push({ label: c.id === 'group' ? 'Rename' : 'Edit chat', onClick: () => setChatEditor(c) })
+    if (agent) {
+      items.push({ label: 'Edit profile', divider: true, onClick: () => setProfile(agent.id) })
+      items.push({ label: agent.muted ? 'Unmute in groups' : 'Mute in groups', onClick: () => void updateAgent(agent.id, { muted: !agent.muted }).catch(fail) })
       items.push({
-        label: 'Delete employee',
-        danger: true,
-        divider: true,
-        onClick: () => setProfile(agentId),
+        label: 'Duplicate employee',
+        onClick: () => void duplicateAgent(agent.id).then(({ agent: copy }) => setProfile(copy.id)).catch(fail),
       })
     }
+    items.push({ label: 'Export as Markdown', divider: true, onClick: () => window.open(exportUrl(c.id), '_blank') })
+    items.push({ label: 'Clear conversation', onClick: () => void clearConversation(c.id).catch(fail) })
+    if (c.kind === 'group' && c.id !== 'group') {
+      items.push({
+        label: 'Delete chat',
+        danger: true,
+        divider: true,
+        onClick: () => {
+          void deleteConversation(c.id)
+            .then(() => {
+              if (latest.current.activeId === c.id) setActiveId('group')
+            })
+            .catch(fail)
+        },
+      })
+    }
+    if (agent) items.push({ label: 'Delete employee', danger: true, divider: true, onClick: () => setProfile(agent.id) })
     return items
   }
 
@@ -99,7 +152,7 @@ export function App() {
         onSelect={setActiveId}
         onMenu={(id, x, y) => setMenu({ conversationId: id, x, y })}
         onSettings={() => setSettings('general')}
-        onNewEmployee={() => setProfile(null)}
+        onNewChat={() => setChatEditor(null)}
       />
       <main className="main">
         <ChatView
@@ -120,6 +173,14 @@ export function App() {
           onStop={() => void stopRound(conversation.id)}
         />
         {!state.connected && <div className="offline">Reconnecting to the office…</div>}
+        {error && (
+          <div className="toast" role="alert">
+            <span>{error}</span>
+            <button type="button" onClick={() => setError(null)} aria-label="Dismiss">
+              ×
+            </button>
+          </div>
+        )}
       </main>
       {profile !== undefined && (
         <Profile
@@ -145,6 +206,16 @@ export function App() {
           onEditAgent={(id) => {
             setSettings(null)
             setProfile(id)
+          }}
+        />
+      )}
+      {chatEditor !== undefined && (
+        <NewChat
+          team={team}
+          {...(chatEditor ? { conversation: chatEditor } : {})}
+          onDone={(id) => {
+            setChatEditor(undefined)
+            if (id) setActiveId(id)
           }}
         />
       )}

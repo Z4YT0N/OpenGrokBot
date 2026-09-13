@@ -1,4 +1,4 @@
-import type { AccountStatus, Agent, AppState, McpServerDef, Message, TeamSettings } from '../../shared/types'
+import type { AccountStatus, Agent, AppState, Conversation, McpServerDef, Message, ProviderDef, ProviderStatus, TeamSettings } from '../../shared/types'
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
@@ -28,6 +28,22 @@ export function clearConversation(conversationId: string): Promise<unknown> {
   return call(`/api/conversations/${encodeURIComponent(conversationId)}/clear`, { method: 'POST' })
 }
 
+export function createConversation(name: string, memberIds: string[]): Promise<{ conversation: Conversation }> {
+  return call('/api/conversations', json('POST', { name, memberIds }))
+}
+
+export function updateConversation(id: string, patch: { name?: string; memberIds?: string[]; pinned?: boolean }): Promise<{ conversation: Conversation }> {
+  return call(`/api/conversations/${encodeURIComponent(id)}`, json('PUT', patch))
+}
+
+export function deleteConversation(id: string): Promise<unknown> {
+  return call(`/api/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+export function exportUrl(id: string): string {
+  return `/api/conversations/${encodeURIComponent(id)}/export.md`
+}
+
 export type AgentPatch = Partial<Omit<Agent, 'id'>>
 
 export function updateAgent(id: string, patch: AgentPatch): Promise<{ agent: Agent }> {
@@ -36,6 +52,10 @@ export function updateAgent(id: string, patch: AgentPatch): Promise<{ agent: Age
 
 export function createAgent(agent: Agent): Promise<{ agent: Agent }> {
   return call('/api/team/agents', json('POST', agent))
+}
+
+export function duplicateAgent(id: string): Promise<{ agent: Agent }> {
+  return call(`/api/team/agents/${encodeURIComponent(id)}/duplicate`, { method: 'POST' })
 }
 
 export function deleteAgent(id: string): Promise<unknown> {
@@ -48,6 +68,19 @@ export function putMcpServer(name: string, def: McpServerDef): Promise<unknown> 
 
 export function deleteMcpServer(name: string): Promise<unknown> {
   return call(`/api/team/mcp/${encodeURIComponent(name)}`, { method: 'DELETE' })
+}
+
+export function putProvider(id: string, def: Partial<ProviderDef>): Promise<unknown> {
+  return call(`/api/team/providers/${encodeURIComponent(id)}`, json('PUT', def))
+}
+
+export function deleteProvider(id: string): Promise<unknown> {
+  return call(`/api/team/providers/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+export async function providerStatuses(force = false): Promise<ProviderStatus[]> {
+  const data = await call<{ statuses: ProviderStatus[] }>(`/api/providers/status${force ? '?force=1' : ''}`)
+  return data.statuses
 }
 
 export interface SettingsPatch {

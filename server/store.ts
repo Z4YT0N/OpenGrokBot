@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Conversation, Message, MessageUsage, Team } from '../shared/types.js'
 
@@ -22,7 +22,7 @@ export class Store {
     }
   }
 
-  /** Make sure the group and one DM per agent exist and reflect the current team. */
+  /** Make sure the main group and one DM per agent exist and reflect the current team. */
   seed(team: Team): void {
     const agentIds = team.agents.map((a) => a.id)
     const group = this.conversations.get('group')
@@ -36,11 +36,16 @@ export class Store {
         memberIds: ['user', ...agentIds],
         messages: [],
         sessions: {},
+        createdAt: Date.now(),
       })
     }
-    // Remove DMs of employees that no longer exist; keep their file on disk as a backup.
     for (const c of [...this.conversations.values()]) {
-      if (c.kind === 'dm' && !c.memberIds.some((id) => agentIds.includes(id))) this.conversations.delete(c.id)
+      if (c.kind === 'dm' && !c.memberIds.some((id) => agentIds.includes(id))) {
+        // The employee is gone: drop the DM from the sidebar, keep the file as a backup.
+        this.conversations.delete(c.id)
+      } else if (c.kind === 'group' && c.id !== 'group') {
+        c.memberIds = c.memberIds.filter((id) => id === 'user' || agentIds.includes(id))
+      }
     }
     for (const a of team.agents) {
       const id = `dm-${a.id}`
@@ -52,10 +57,38 @@ export class Store {
           memberIds: ['user', a.id],
           messages: [],
           sessions: {},
+          createdAt: Date.now(),
         })
       }
     }
     for (const c of this.conversations.values()) this.flush(c)
+  }
+
+  createGroup(name: string, memberIds: string[]): Conversation {
+    const id = `g-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+    const c: Conversation = { id, kind: 'group', name, memberIds: ['user', ...memberIds.filter((m) => m !== 'user')], messages: [], sessions: {}, createdAt: Date.now() }
+    this.conversations.set(id, c)
+    this.flush(c)
+    return c
+  }
+
+  update(id: string, patch: { name?: string; memberIds?: string[]; pinned?: boolean }): Conversation | undefined {
+    const c = this.conversations.get(id)
+    if (!c) return undefined
+    if (patch.name !== undefined && c.kind === 'group') c.name = patch.name
+    if (patch.memberIds !== undefined && c.kind === 'group' && c.id !== 'group') c.memberIds = ['user', ...patch.memberIds.filter((m) => m !== 'user')]
+    if (patch.pinned !== undefined) c.pinned = patch.pinned
+    this.flush(c)
+    return c
+  }
+
+  delete(id: string): boolean {
+    const c = this.conversations.get(id)
+    if (!c || id === 'group' || c.kind === 'dm') return false
+    this.conversations.delete(id)
+    const file = path.join(this.dir, `${id}.json`)
+    if (existsSync(file)) unlinkSync(file)
+    return true
   }
 
   /** Wipe a conversation's messages, usage and sessions. */
@@ -108,15 +141,15 @@ export class Store {
     this.flush(c)
   }
 
-  setSession(conversationId: string, agentId: string, sessionId: string): void {
+  setSession(conversationId: string, key: string, sessionId: string): void {
     const c = this.must(conversationId)
-    c.sessions[agentId] = sessionId
+    c.sessions[key] = sessionId
     this.flush(c)
   }
 
-  clearSession(conversationId: string, agentId: string): void {
+  clearSession(conversationId: string, key: string): void {
     const c = this.must(conversationId)
-    delete c.sessions[agentId]
+    delete c.sessions[key]
     this.flush(c)
   }
 
