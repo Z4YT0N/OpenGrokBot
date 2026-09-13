@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto'
+import type { Account } from './account.js'
 import { runAgentTurn } from './agent.js'
 import { emit } from './events.js'
 import { findMentions } from './mentions.js'
 import type { Store } from './store.js'
+import { summarizeUsage } from './usage.js'
 import type { Agent, Conversation, Message, Team } from '../shared/types.js'
-
-const MAX_AGENT_MESSAGES_PER_ROUND = 8
-const MAX_TURNS_PER_AGENT_PER_ROUND = 2
 
 interface RoundState {
   running: boolean
@@ -26,8 +25,9 @@ export class Orchestrator {
   private readonly rounds = new Map<string, RoundState>()
 
   constructor(
-    private readonly team: Team,
+    private readonly getTeam: () => Team,
     private readonly store: Store,
+    private readonly account: Account,
   ) {}
 
   isBusy(conversationId: string): boolean {
@@ -69,6 +69,37 @@ export class Orchestrator {
     state.abort?.abort()
   }
 
+  /** Runs a minimal turn just to refresh the account's rate-limit picture. */
+  async probeAccount(): Promise<void> {
+    const team = this.getTeam()
+    const agent = team.agents[0]
+    if (!agent) return
+    const probe: Agent = { ...agent, id: 'probe', name: 'PROBE', model: 'claude-haiku-4-5', effort: 'low', tools: [], mcpServers: [], inheritClaudeSettings: false, autoApproveTools: false, personality: 'Reply with the single word OK.' }
+    const conversation: Conversation = {
+      id: 'probe',
+      kind: 'dm',
+      name: 'probe',
+      memberIds: ['user', 'probe'],
+      messages: [{ id: 'p', conversationId: 'probe', authorId: 'user', text: 'ping', createdAt: Date.now(), status: 'done' }],
+      sessions: {},
+    }
+    await runAgentTurn({
+      team: { ...team, agents: [probe] },
+      conversation,
+      agent: probe,
+      sessionId: undefined,
+      signal: new AbortController().signal,
+      handlers: {
+        onDelta: () => {},
+        onActivity: () => {},
+        onSession: () => {},
+        onInit: (src, ver) => this.account.noteInit(src, ver),
+        onRateLimit: (info) => this.account.noteRateLimit(info),
+      },
+    })
+    emit({ type: 'account', account: this.account.get() })
+  }
+
   private state(conversationId: string): RoundState {
     let s = this.rounds.get(conversationId)
     if (!s) {
@@ -97,12 +128,13 @@ export class Orchestrator {
   private async speakers(conversationId: string, trigger: Message, signal: AbortSignal): Promise<void> {
     const conversation = this.store.get(conversationId)
     if (!conversation) return
-    const members = this.team.agents.filter((a) => conversation.memberIds.includes(a.id))
-    const queue = initialQueue(this.team, conversation, trigger.text)
+    const team = this.getTeam()
+    const members = team.agents.filter((a) => conversation.memberIds.includes(a.id))
+    const queue = initialQueue(team, conversation, trigger.text)
     const turns = new Map<string, number>()
     let count = 0
 
-    while (queue.length > 0 && count < MAX_AGENT_MESSAGES_PER_ROUND && !signal.aborted) {
+    while (queue.length > 0 && count < team.settings.maxMessagesPerRound && !signal.aborted) {
       const agent = queue.shift()
       if (!agent) break
       // A newer owner message arrived mid-round: let the next round handle it with fresh context.
@@ -113,7 +145,7 @@ export class Orchestrator {
       if (!reply) continue
       for (const m of findMentions(reply, members, agent.id)) {
         const taken = turns.get(m.id) ?? 0
-        if (taken >= MAX_TURNS_PER_AGENT_PER_ROUND) continue
+        if (taken >= team.settings.maxTurnsPerAgentPerRound) continue
         if (queue.some((q) => q.id === m.id)) continue
         queue.push(m)
       }
@@ -124,6 +156,7 @@ export class Orchestrator {
   private async turn(conversationId: string, agent: Agent, signal: AbortSignal): Promise<string> {
     const conversation = this.store.get(conversationId)
     if (!conversation) return ''
+    const team = this.getTeam()
     const message: Message = {
       id: randomUUID(),
       conversationId,
@@ -143,7 +176,7 @@ export class Orchestrator {
     }
 
     const result = await runAgentTurn({
-      team: this.team,
+      team,
       conversation,
       agent,
       sessionId: conversation.sessions[agent.id],
@@ -162,6 +195,13 @@ export class Orchestrator {
         onSession: (sessionId) => {
           this.store.setSession(conversationId, agent.id, sessionId)
         },
+        onInit: (src, ver) => {
+          if (this.account.noteInit(src, ver)) emit({ type: 'account', account: this.account.get() })
+        },
+        onRateLimit: (info) => {
+          this.account.noteRateLimit(info)
+          emit({ type: 'account', account: this.account.get() })
+        },
       },
     })
     emit({ type: 'typing', conversationId, agentId: agent.id, on: false })
@@ -172,26 +212,36 @@ export class Orchestrator {
       if (!started) return this.turn(conversationId, agent, signal)
     }
 
+    const usagePatch = result.usage ? { usage: result.usage } : {}
+
     if (result.error) {
       start()
       const text = message.text.trim().length > 0 ? message.text : `⚠️ ${result.error}`
-      const done = this.store.updateMessage(conversationId, message.id, { text, status: 'error' }) ?? { ...message, text, status: 'error' as const }
+      const done = this.store.updateMessage(conversationId, message.id, { text, status: 'error', ...usagePatch }) ?? { ...message, text, status: 'error' as const }
       emit({ type: 'message:done', message: done })
+      this.emitUsage()
       return ''
     }
 
     if (result.text.length === 0) {
-      // The agent chose to skip. Drop the placeholder if it was ever shown.
+      // The agent chose to skip. Keep the cost on the books but drop the bubble.
       if (started) {
         this.store.removeMessage(conversationId, message.id)
         emit({ type: 'message:remove', conversationId, messageId: message.id })
       }
+      if (result.usage) this.store.recordSilentUsage(conversationId, agent.id, result.usage)
+      this.emitUsage()
       return ''
     }
 
     start()
-    const done = this.store.updateMessage(conversationId, message.id, { text: result.text, status: 'done' }) ?? { ...message, text: result.text, status: 'done' as const }
+    const done = this.store.updateMessage(conversationId, message.id, { text: result.text, status: 'done', ...usagePatch }) ?? { ...message, text: result.text, status: 'done' as const }
     emit({ type: 'message:done', message: done })
+    this.emitUsage()
     return result.text
+  }
+
+  private emitUsage(): void {
+    emit({ type: 'usage', usage: summarizeUsage(this.store.list()) })
   }
 }

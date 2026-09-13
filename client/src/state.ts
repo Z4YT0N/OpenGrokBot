@@ -1,4 +1,4 @@
-import type { AppState, Conversation, Message, ServerEvent, Team } from '../../shared/types'
+import type { AccountStatus, AppState, Conversation, Message, ServerEvent, Team, UsageSummary } from '../../shared/types'
 
 export interface UiState {
   team: Team | null
@@ -6,6 +6,8 @@ export interface UiState {
   busy: Set<string>
   typing: Map<string, Set<string>>
   connected: boolean
+  usage: UsageSummary
+  account: AccountStatus
 }
 
 export type Action =
@@ -13,12 +15,16 @@ export type Action =
   | { type: 'event'; event: ServerEvent }
   | { type: 'connected'; connected: boolean }
 
+const emptyTotals = { messages: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 }
+
 export const initialState: UiState = {
   team: null,
   conversations: [],
   busy: new Set(),
   typing: new Map(),
   connected: false,
+  usage: { byAgent: {}, byConversation: {}, byModel: {}, total: emptyTotals },
+  account: { windows: {} },
 }
 
 function patchConversation(state: UiState, id: string, fn: (c: Conversation) => Conversation): UiState {
@@ -43,6 +49,8 @@ export function reducer(state: UiState, action: Action): UiState {
         team: action.state.team,
         conversations: action.state.conversations,
         busy: new Set(action.state.busy),
+        usage: action.state.usage,
+        account: action.state.account,
       }
     case 'event': {
       const ev = action.event
@@ -78,6 +86,12 @@ export function reducer(state: UiState, action: Action): UiState {
           if (!ev.running) typing.set(ev.conversationId, new Set())
           return { ...state, busy, typing }
         }
+        case 'usage':
+          return { ...state, usage: ev.usage }
+        case 'account':
+          return { ...state, account: ev.account }
+        case 'team':
+          return { ...state, team: ev.team, conversations: ev.conversations }
         default:
           return state
       }

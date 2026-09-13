@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Conversation, Message, Team } from '../../../shared/types'
+import type { Conversation, Message, Team, UsageSummary } from '../../../shared/types'
+import { formatCost, formatDuration, formatTokens, modelLabel } from '../format'
 import { conversationAvatars, conversationTitle, personFor } from '../people'
 import { Avatar, AvatarCluster } from './Avatar'
 import { RichText } from './RichText'
@@ -8,6 +9,9 @@ interface ChatViewProps {
   team: Team
   conversation: Conversation
   typing: Set<string>
+  usage: UsageSummary
+  onEditAgent: (id: string) => void
+  profileOpen: boolean
 }
 
 interface Group {
@@ -28,10 +32,10 @@ function groupMessages(messages: Message[]): Group[] {
   return groups
 }
 
-export function ChatView({ team, conversation, typing }: ChatViewProps) {
+export function ChatView({ team, conversation, typing, usage, onEditAgent, profileOpen }: ChatViewProps) {
   const scroller = useRef<HTMLDivElement | null>(null)
   const pinned = useRef(true)
-  const [showInfo, setShowInfo] = useState(conversation.kind === 'group')
+  const [showInfo, setShowInfo] = useState(true)
   const groups = groupMessages(conversation.messages)
   const typingPeople = [...typing].filter((id) => !conversation.messages.some((m) => m.authorId === id && m.status === 'streaming')).map((id) => personFor(team, id))
 
@@ -57,14 +61,21 @@ export function ChatView({ team, conversation, typing }: ChatViewProps) {
   }
 
   const people = conversationAvatars(conversation).map((id) => personFor(team, id))
+  const convUsage = usage.byConversation[conversation.id]
+  const panel = showInfo && !profileOpen
 
   return (
     <section className="chat">
       <header className="chat-header">
         <AvatarCluster people={people} size={30} />
         <h1 className="chat-title">{conversationTitle(team, conversation)}</h1>
-        <button type="button" className={`icon-button${showInfo ? ' is-active' : ''}`} onClick={() => setShowInfo((v) => !v)} aria-label={showInfo ? 'Hide members' : 'Show members'}>
-          {showInfo ? <ChevronsIcon /> : <InfoIcon />}
+        {convUsage && (
+          <span className="chat-usage" title="Tokens and API-equivalent cost of this conversation">
+            {formatTokens(convUsage.inputTokens + convUsage.cacheReadTokens + convUsage.cacheCreationTokens + convUsage.outputTokens)} tok · {formatCost(convUsage.costUsd)}
+          </span>
+        )}
+        <button type="button" className={`icon-button${panel ? ' is-active' : ''}`} onClick={() => setShowInfo((v) => !v)} aria-label={panel ? 'Hide members' : 'Show members'}>
+          {panel ? <ChevronsIcon /> : <InfoIcon />}
         </button>
       </header>
       <div className="chat-body">
@@ -98,20 +109,30 @@ export function ChatView({ team, conversation, typing }: ChatViewProps) {
             ))}
           </div>
         </div>
-        {showInfo && (
+        {panel && (
           <aside className="info-panel">
             <h2>Members</h2>
             {conversation.memberIds
               .filter((id) => id !== 'user')
               .map((id) => {
                 const p = personFor(team, id)
+                const a = p.agent
                 const busy = typing.has(id)
+                const u = usage.byAgent[id]
                 return (
-                  <div key={id} className="info-member" title={p.agent ? `${p.agent.model} · ${p.agent.tools.length ? p.agent.tools.join(', ') : 'chat only'}` : ''}>
+                  <button key={id} type="button" className="info-member" onClick={() => onEditAgent(id)} title="Edit profile">
                     <Avatar person={p} size={30} />
-                    <div className="info-name">{p.label}</div>
+                    <span className="info-text">
+                      <span className="info-name">{p.label}</span>
+                      {a && (
+                        <span className="info-meta">
+                          {modelLabel(a.model)} · {a.effort}
+                          {u ? ` · ${formatTokens(u.inputTokens + u.cacheReadTokens + u.cacheCreationTokens + u.outputTokens)} tok` : ''}
+                        </span>
+                      )}
+                    </span>
                     {busy && <span className="dot" aria-label="typing" />}
-                  </div>
+                  </button>
                 )
               })}
           </aside>
@@ -136,18 +157,26 @@ function MessageGroup({ team, group }: { team: Team; group: Group }) {
         return (
           <div key={m.id} className="message-row">
             {!mine && <span className="message-avatar">{last && <Avatar person={person} size={28} />}</span>}
-            <div dir="auto" className={`bubble${m.status === 'streaming' ? ' is-streaming' : ''}${m.status === 'error' ? ' is-error' : ''}`}>
-              {m.activity && m.activity.length > 0 && (
-                <div className="activity">
-                  {m.activity.slice(-4).map((line, j) => (
-                    <div key={j} className="activity-line">
-                      <ToolIcon />
-                      <span>{line}</span>
-                    </div>
-                  ))}
+            <div className="bubble-wrap">
+              <div dir="auto" className={`bubble${m.status === 'streaming' ? ' is-streaming' : ''}${m.status === 'error' ? ' is-error' : ''}`}>
+                {m.activity && m.activity.length > 0 && (
+                  <div className="activity">
+                    {m.activity.slice(-4).map((line, j) => (
+                      <div key={j} className="activity-line">
+                        <ToolIcon />
+                        <span>{line}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {m.text.length > 0 ? <RichText text={m.text} team={team} /> : m.status === 'streaming' ? <span className="working">working…</span> : null}
+              </div>
+              {m.usage && (
+                <div className="message-meta">
+                  {modelLabel(m.usage.model)} · {formatTokens(m.usage.inputTokens + m.usage.cacheReadTokens + m.usage.cacheCreationTokens)} in · {formatTokens(m.usage.outputTokens)} out · {formatCost(m.usage.costUsd)} · {formatDuration(m.usage.durationMs)}
+                  {m.usage.numTurns > 1 ? ` · ${m.usage.numTurns} steps` : ''}
                 </div>
               )}
-              {m.text.length > 0 ? <RichText text={m.text} team={team} /> : m.status === 'streaming' ? <span className="working">working…</span> : null}
             </div>
           </div>
         )

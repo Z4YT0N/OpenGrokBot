@@ -6,13 +6,13 @@ import { initialQueue } from './orchestrator.js'
 import type { Agent, Conversation, Team } from '../shared/types.js'
 
 function agent(id: string, name: string): Agent {
-  return { id, name, role: 'ROLE', color: '#fff', model: 'claude-opus-5', effort: 'low', personality: 'p', tools: [], permissionMode: 'dontAsk', shape: 'blob' }
+  return { id, name, role: 'ROLE', color: '#fff', model: 'claude-opus-5', effort: 'low', personality: 'p', tools: [], permissionMode: 'dontAsk', shape: 'blob', mcpServers: [], inheritClaudeSettings: false, autoApproveTools: false }
 }
 
 const khaled = agent('khaled', 'KHALED')
 const omar = agent('omar', 'OMAR')
 const sara = agent('sara', 'SARA ALI')
-const team: Team = { company: 'Co', owner: { id: 'user', name: 'Mahmoud Amr', title: 'CEO' }, workspace: '.', agents: [khaled, omar, sara] }
+const team: Team = { company: 'Co', owner: { id: 'user', name: 'Mahmoud Amr', title: 'CEO' }, workspace: '.', agents: [khaled, omar, sara], mcpServers: {}, settings: { maxMessagesPerRound: 8, maxTurnsPerAgentPerRound: 2, maxTurnsPerReply: 40 } }
 
 function group(memberIds = ['user', 'khaled', 'omar', 'sara']): Conversation {
   return { id: 'group', kind: 'group', name: 'Team', memberIds, messages: [], sessions: {} }

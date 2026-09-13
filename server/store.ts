@@ -1,6 +1,6 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import type { Conversation, Message, Team } from '../shared/types.js'
+import type { Conversation, Message, MessageUsage, Team } from '../shared/types.js'
 
 export class Store {
   private readonly dir: string
@@ -38,6 +38,10 @@ export class Store {
         sessions: {},
       })
     }
+    // Remove DMs of employees that no longer exist; keep their file on disk as a backup.
+    for (const c of [...this.conversations.values()]) {
+      if (c.kind === 'dm' && !c.memberIds.some((id) => agentIds.includes(id))) this.conversations.delete(c.id)
+    }
     for (const a of team.agents) {
       const id = `dm-${a.id}`
       if (!this.conversations.has(id)) {
@@ -52,6 +56,17 @@ export class Store {
       }
     }
     for (const c of this.conversations.values()) this.flush(c)
+  }
+
+  /** Wipe a conversation's messages, usage and sessions. */
+  clear(id: string): boolean {
+    const c = this.conversations.get(id)
+    if (!c) return false
+    c.messages = []
+    c.sessions = {}
+    delete c.silent
+    this.flush(c)
+    return true
   }
 
   list(): Conversation[] {
@@ -75,6 +90,14 @@ export class Store {
     Object.assign(m, patch)
     this.flush(c)
     return m
+  }
+
+  /** A skipped turn still costs tokens: keep them as a hidden zero-text message so totals stay honest. */
+  recordSilentUsage(conversationId: string, agentId: string, usage: MessageUsage): void {
+    const c = this.must(conversationId)
+    c.silent ??= []
+    c.silent.push({ agentId, usage, at: Date.now() })
+    this.flush(c)
   }
 
   removeMessage(conversationId: string, messageId: string): void {

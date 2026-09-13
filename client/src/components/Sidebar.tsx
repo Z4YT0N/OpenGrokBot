@@ -9,21 +9,27 @@ interface SidebarProps {
   activeId: string
   busy: Set<string>
   onSelect: (id: string) => void
+  onMenu: (conversationId: string, x: number, y: number) => void
+  onSettings: () => void
+  onNewEmployee: () => void
 }
 
-export function Sidebar({ team, conversations, activeId, busy, onSelect }: SidebarProps) {
+export function Sidebar({ team, conversations, activeId, busy, onSelect, onMenu, onSettings, onNewEmployee }: SidebarProps) {
   const [q, setQ] = useState('')
   const owner = personFor(team, 'user')
-  const ordered = [...conversations].sort((a, b) => {
-    if (a.kind !== b.kind) return a.kind === 'group' ? -1 : 1
-    return 0
-  })
+  const rank = (c: Conversation): number => {
+    if (c.kind === 'group') return -1
+    const agentId = c.memberIds.find((id) => id !== 'user')
+    const i = team.agents.findIndex((a) => a.id === agentId)
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i
+  }
+  const ordered = [...conversations].sort((a, b) => rank(a) - rank(b))
   const filtered = ordered.filter((c) => conversationTitle(team, c).toLowerCase().includes(q.trim().toLowerCase()))
 
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
-        <button type="button" className="icon-button" title="New chat (coming soon)" aria-label="New chat">
+        <button type="button" className="icon-button" title="New employee" aria-label="New employee" onClick={onNewEmployee}>
           <PlusIcon />
         </button>
       </div>
@@ -43,6 +49,10 @@ export function Sidebar({ team, conversations, activeId, busy, onSelect }: Sideb
               type="button"
               className={`conversation${active ? ' is-active' : ''}`}
               onClick={() => onSelect(c.id)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                onMenu(c.id, e.clientX, e.clientY)
+              }}
             >
               <span className="conversation-avatar">
                 <AvatarCluster people={people} size={c.kind === 'group' ? 40 : 44} />
@@ -58,21 +68,35 @@ export function Sidebar({ team, conversations, activeId, busy, onSelect }: Sideb
                   {busy.has(c.id) && <span className="dot" aria-label="Replying" />}
                 </span>
               </span>
+              <span
+                className="conversation-more"
+                role="button"
+                tabIndex={-1}
+                aria-label="More"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                  onMenu(c.id, r.left, r.bottom + 4)
+                }}
+              >
+                <MoreIcon />
+              </span>
             </button>
           )
         })}
       </nav>
       <div className="sidebar-bottom">
-        <div className="sidebar-item">
+        <button type="button" className="sidebar-item" onClick={onSettings}>
           <span className="sidebar-item-icon">
-            <GridIcon />
+            <GearIcon />
           </span>
-          <span>{team.company}</span>
-        </div>
-        <div className="sidebar-item">
+          <span>Settings</span>
+        </button>
+        <button type="button" className="sidebar-item" onClick={onSettings}>
           <Avatar person={owner} size={30} />
           <span>{owner.name}</span>
-        </div>
+          <span className="muted small">{team.company}</span>
+        </button>
       </div>
     </aside>
   )
@@ -102,13 +126,21 @@ function SearchIcon() {
   )
 }
 
-function GridIcon() {
+function GearIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
-      <rect x="3" y="3" width="5.5" height="5.5" rx="1.5" />
-      <rect x="11.5" y="3" width="5.5" height="5.5" rx="1.5" />
-      <rect x="3" y="11.5" width="5.5" height="5.5" rx="1.5" />
-      <rect x="11.5" y="11.5" width="5.5" height="5.5" rx="1.5" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+    </svg>
+  )
+}
+
+function MoreIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+      <circle cx="4" cy="10" r="1.8" />
+      <circle cx="10" cy="10" r="1.8" />
+      <circle cx="16" cy="10" r="1.8" />
     </svg>
   )
 }
