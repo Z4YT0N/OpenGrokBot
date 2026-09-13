@@ -4,3 +4,4 @@ data/
 team.json
 .env
 *.log
+playground/
