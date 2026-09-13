@@ -19,11 +19,11 @@ function approvalMode(tools: string[], autoApprove: boolean): string {
  * carries the recent history each turn.
  */
 export async function runGeminiTurn(params: RunTurnParams): Promise<TurnResult> {
-  const { team, conversation, agent, provider, signal, handlers, note } = params
+  const { team, conversation, agent, provider, signal, handlers, note, notes } = params
   const started = Date.now()
   const cwd = agent.cwd ?? team.workspace
   const args = ['--output-format', 'json', ...(agent.model && agent.model !== 'default' ? ['-m', agent.model] : []), '--approval-mode', approvalMode(agent.tools, agent.autoApproveTools || agent.permissionMode === 'bypassPermissions')]
-  const stdin = `<system>\n${buildSystemPrompt(team, conversation, agent)}\n</system>\n\n${buildTurnPrompt(team, conversation, agent, false, note)}`
+  const stdin = `<system>\n${buildSystemPrompt(team, conversation, agent, '', notes ?? '')}\n</system>\n\n${buildTurnPrompt(team, conversation, agent, false, note)}`
 
   const env: NodeJS.ProcessEnv = { ...process.env, NO_COLOR: '1' }
   if (provider.apiKey) env.GEMINI_API_KEY = provider.apiKey

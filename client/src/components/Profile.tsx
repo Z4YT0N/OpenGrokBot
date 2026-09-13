@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { EFFORTS, MODELS, MODEL_SUGGESTIONS, PERMISSION_MODES, PROVIDER_KINDS, SHAPES, TOOLS } from '../../../shared/catalog'
-import type { Agent, AvatarShape, Effort, PermissionMode, ProviderStatus, Team, UsageTotals } from '../../../shared/types'
-import { createAgent, deleteAgent, duplicateAgent, providerStatuses, updateAgent } from '../api'
+import type { Agent, ApprovalPolicy, AvatarShape, Effort, PermissionMode, ProviderStatus, Team, UsageTotals } from '../../../shared/types'
+import { createAgent, deleteAgent, duplicateAgent, getMemory, providerStatuses, putMemory, updateAgent } from '../api'
 import { formatCost, formatTokens } from '../format'
 import { personFor } from '../people'
 import { Avatar } from './Avatar'
@@ -34,6 +34,7 @@ function blank(team: Team): Agent {
     inheritClaudeSettings: false,
     autoApproveTools: false,
     muted: false,
+    approvals: 'auto',
   }
 }
 
@@ -268,6 +269,15 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
             <small>{PERMISSION_MODES.find((p) => p.id === draft.permissionMode)?.hint}</small>
           </label>
           <label className="field">
+            <span>Approvals</span>
+            <select value={draft.approvals} onChange={(e) => set('approvals', e.target.value as ApprovalPolicy)}>
+              <option value="auto">Run listed tools without asking</option>
+              <option value="ask-dangerous">Ask me before Bash, Write, Edit and MCP tools</option>
+              <option value="ask-all">Ask me before every tool</option>
+            </select>
+            <small>Approval cards appear in the chat with Allow once / Always allow / Deny. Auto-review rules in Settings → General can pre-decide. Claude and API employees only; Codex and Gemini follow their own sandbox.</small>
+          </label>
+          <label className="field">
             <span>Working folder</span>
             <input value={draft.cwd ?? ''} onChange={(e) => set('cwd', e.target.value || undefined)} placeholder={team.workspace} />
           </label>
@@ -305,6 +315,8 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
           </section>
         )}
 
+        {existing && <MemorySection agentId={existing.id} />}
+
         {existing && (
           <section className="form-section danger">
             <div className="confirm">
@@ -331,5 +343,49 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
         )}
       </div>
     </aside>
+  )
+}
+
+function MemorySection({ agentId }: { agentId: string }) {
+  const [notes, setNotes] = useState<string | null>(null)
+  const [saved, setSaved] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    setNotes(null)
+    getMemory(agentId)
+      .then((n) => {
+        setNotes(n)
+        setSaved(n)
+      })
+      .catch(() => {
+        setNotes('')
+        setSaved('')
+      })
+  }, [agentId])
+  if (notes === null) return null
+  const save = async (value: string) => {
+    setBusy(true)
+    try {
+      await putMemory(agentId, value)
+      setSaved(value)
+      setNotes(value)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <section className="form-section">
+      <h3>Memory</h3>
+      <p className="hint">What this employee remembers across conversations. It rewrites itself after they speak; you can correct or clear it.</p>
+      <textarea rows={8} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Nothing remembered yet." />
+      <div className="confirm">
+        <button type="button" className="btn btn-primary" disabled={busy || notes === saved} onClick={() => void save(notes)}>
+          Save notes
+        </button>
+        <button type="button" className="btn btn-danger-ghost" disabled={busy || !saved} onClick={() => void save('')}>
+          Clear memory
+        </button>
+      </div>
+    </section>
   )
 }

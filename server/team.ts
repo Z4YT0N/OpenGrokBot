@@ -1,7 +1,7 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DEFAULT_PROVIDERS } from '../shared/catalog.js'
-import type { Agent, McpServerDef, ProviderDef, Team, TeamSettings } from '../shared/types.js'
+import type { Agent, AutoReviewRule, McpServerDef, ProviderDef, Skill, Team, TeamSettings } from '../shared/types.js'
 
 const PERMISSION_MODES = new Set(['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'])
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max'])
@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS: TeamSettings = {
   groupMode: 'smart',
   language: 'auto',
   notifications: true,
+  autoReview: [],
 }
 
 export class TeamError extends Error {}
@@ -71,6 +72,7 @@ export function parseAgent(raw: unknown, label = 'agent'): Agent {
     inheritClaudeSettings: r.inheritClaudeSettings === true,
     autoApproveTools: r.autoApproveTools === true,
     muted: r.muted === true,
+    approvals: r.approvals === 'ask-dangerous' || r.approvals === 'ask-all' ? r.approvals : 'auto',
   }
   if (typeof r.cwd === 'string' && r.cwd.trim().length > 0) agent.cwd = r.cwd.trim()
   if (typeof r.department === 'string' && r.department.trim().length > 0) agent.department = r.department.trim()
@@ -111,6 +113,24 @@ export function parseProvider(raw: unknown, label = 'provider'): ProviderDef {
   return def
 }
 
+function parseRules(raw: unknown): AutoReviewRule[] {
+  if (!Array.isArray(raw)) return []
+  const out: AutoReviewRule[] = []
+  for (const item of raw) {
+    const r = asRecord(item)
+    if (typeof r.tool !== 'string' || !r.tool.trim()) continue
+    const rule: AutoReviewRule = { id: typeof r.id === 'string' && r.id ? r.id : Math.random().toString(36).slice(2, 10), action: r.action === 'require' ? 'require' : 'allow', tool: r.tool.trim() }
+    if (typeof r.match === 'string' && r.match.trim()) rule.match = r.match.trim()
+    out.push(rule)
+  }
+  return out
+}
+
+export function parseSkill(raw: unknown, label = 'skill'): Skill {
+  const r = asRecord(raw)
+  return { name: asString(r.name, `${label}.name`).trim(), description: typeof r.description === 'string' ? r.description.trim() : '', body: asString(r.body, `${label}.body`) }
+}
+
 function parseSettings(raw: unknown): TeamSettings {
   const r = asRecord(raw)
   const num = (k: 'maxMessagesPerRound' | 'maxTurnsPerAgentPerRound' | 'maxTurnsPerReply', min: number, max: number): number => {
@@ -130,6 +150,7 @@ function parseSettings(raw: unknown): TeamSettings {
     groupMode: groupMode as TeamSettings['groupMode'],
     language: language as TeamSettings['language'],
     notifications: r.notifications === undefined ? DEFAULT_SETTINGS.notifications : r.notifications === true,
+    autoReview: parseRules(r.autoReview),
   }
 }
 
@@ -154,6 +175,11 @@ export function parseTeam(raw: unknown, fallbackWorkspace: string): Team {
     if (!/^[A-Za-z0-9_-]+$/.test(name)) fail(`mcpServers name "${name}" must be letters, digits, - or _`)
     mcpServers[name] = parseMcpServer(def, `mcpServers.${name}`)
   }
+  const skills: Record<string, Skill> = {}
+  for (const [id, def] of Object.entries(asRecord(r.skills))) {
+    if (!/^[a-z0-9_-]+$/.test(id)) fail(`skills id "${id}" must be lowercase letters, digits, - or _`)
+    skills[id] = parseSkill(def, `skills.${id}`)
+  }
   const providers: Record<string, ProviderDef> = {}
   for (const [id, def] of Object.entries(DEFAULT_PROVIDERS)) providers[id] = { ...def }
   for (const [id, def] of Object.entries(asRecord(r.providers))) {
@@ -172,6 +198,7 @@ export function parseTeam(raw: unknown, fallbackWorkspace: string): Team {
     agents,
     providers,
     mcpServers,
+    skills,
     settings: parseSettings(r.settings),
   }
   validateTeam(team)

@@ -1,3 +1,4 @@
+import { needsApproval } from '../approvals.js'
 import { buildSystemPrompt, buildTurnPrompt, stripSkip } from '../prompt.js'
 import { LOCAL_TOOLS, runLocalTool, summarizeLocalTool } from './localtools.js'
 import { emptyUsage, type RunTurnParams, type TurnResult } from './types.js'
@@ -26,13 +27,13 @@ interface StreamChunk {
  * reply and runs a small tool loop with local file/shell tools when the employee has tools.
  */
 export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> {
-  const { team, conversation, agent, provider, signal, handlers, note } = params
+  const { team, conversation, agent, provider, signal, handlers, note, notes } = params
   const started = Date.now()
   const cwd = agent.cwd ?? team.workspace
   const allowOutside = agent.autoApproveTools || agent.permissionMode === 'bypassPermissions'
   const tools = LOCAL_TOOLS.filter((t) => agent.tools.includes(t.claudeName))
   const messages: ChatMessage[] = [
-    { role: 'system', content: buildSystemPrompt(team, conversation, agent) },
+    { role: 'system', content: buildSystemPrompt(team, conversation, agent, '', notes ?? '') },
     { role: 'user', content: buildTurnPrompt(team, conversation, agent, false, note) },
   ]
   const usage = emptyUsage(agent.model)
@@ -140,8 +141,11 @@ export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> 
       }
       handlers.onActivity(summarizeLocalTool(call.function.name, args))
       let result: string
+      const claudeName = LOCAL_TOOLS.find((t) => t.name === call.function.name)?.claudeName ?? call.function.name
+      const mustAsk = !agent.autoApproveTools && handlers.onToolPermission !== undefined && needsApproval(agent, claudeName)
       try {
-        result = await runLocalTool(call.function.name, args, cwd, allowOutside, signal)
+        if (mustAsk && !(await handlers.onToolPermission?.(claudeName, args))) result = 'Denied by the boss. Explain what you wanted to do and stop.'
+        else result = await runLocalTool(call.function.name, args, cwd, allowOutside, signal)
       } catch (err) {
         result = `Error: ${err instanceof Error ? err.message : String(err)}`
       }

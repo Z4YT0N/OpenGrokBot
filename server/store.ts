@@ -72,12 +72,13 @@ export class Store {
     return c
   }
 
-  update(id: string, patch: { name?: string; memberIds?: string[]; pinned?: boolean }): Conversation | undefined {
+  update(id: string, patch: { name?: string; memberIds?: string[]; pinned?: boolean; hidden?: boolean }): Conversation | undefined {
     const c = this.conversations.get(id)
     if (!c) return undefined
     if (patch.name !== undefined && c.kind === 'group') c.name = patch.name
     if (patch.memberIds !== undefined && c.kind === 'group' && c.id !== 'group') c.memberIds = ['user', ...patch.memberIds.filter((m) => m !== 'user')]
     if (patch.pinned !== undefined) c.pinned = patch.pinned
+    if (patch.hidden !== undefined) c.hidden = patch.hidden
     this.flush(c)
     return c
   }

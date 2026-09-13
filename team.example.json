@@ -28,7 +28,8 @@
       "department": "Management",
       "provider": "claude",
       "muted": false,
-      "scope": "priorities, scope, deadlines, assigning work, budget and hiring decisions, the team's process"
+      "scope": "priorities, scope, deadlines, assigning work, budget and hiring decisions, the team's process",
+      "approvals": "auto"
     },
     {
       "id": "omar",
@@ -56,7 +57,8 @@
       "department": "Engineering",
       "provider": "claude",
       "muted": false,
-      "scope": "frontend and full-stack code: web pages, landing pages, hero sections, HTML/CSS/JS, React/Next.js, Node APIs, bug fixes, deployments to Vercel"
+      "scope": "frontend and full-stack code: web pages, landing pages, hero sections, HTML/CSS/JS, React/Next.js, Node APIs, bug fixes, deployments to Vercel",
+      "approvals": "auto"
     },
     {
       "id": "ziad",
@@ -82,7 +84,8 @@
       "department": "Ops",
       "provider": "claude",
       "muted": false,
-      "scope": "servers, DNS, domains, SSL, CI/CD, hosting (Vercel, VPS, Hostinger), backups, uptime, environment variables and secrets"
+      "scope": "servers, DNS, domains, SSL, CI/CD, hosting (Vercel, VPS, Hostinger), backups, uptime, environment variables and secrets",
+      "approvals": "auto"
     },
     {
       "id": "sara",
@@ -101,7 +104,8 @@
       "department": "Ops",
       "provider": "claude",
       "muted": false,
-      "scope": "contracts, invoices, payments, client onboarding, scheduling, SLAs, admin and paperwork"
+      "scope": "contracts, invoices, payments, client onboarding, scheduling, SLAs, admin and paperwork",
+      "approvals": "auto"
     },
     {
       "id": "adam",
@@ -127,7 +131,8 @@
       "department": "Backend",
       "provider": "claude",
       "muted": false,
-      "scope": "backend architecture: data models, databases, APIs, auth, security, data integrity, integrations"
+      "scope": "backend architecture: data models, databases, APIs, auth, security, data integrity, integrations",
+      "approvals": "auto"
     },
     {
       "id": "karim",
@@ -149,7 +154,8 @@
       "department": "Sales",
       "provider": "claude",
       "muted": false,
-      "scope": "leads, pipeline, offers, pricing conversations, client objections, outreach, WhatsApp follow-ups"
+      "scope": "leads, pipeline, offers, pricing conversations, client objections, outreach, WhatsApp follow-ups",
+      "approvals": "auto"
     },
     {
       "id": "hana",
@@ -173,7 +179,8 @@
       "department": "QA",
       "provider": "claude",
       "muted": false,
-      "scope": "testing what was built: bugs, edge cases, mobile, RTL layout checks, acceptance checklists"
+      "scope": "testing what was built: bugs, edge cases, mobile, RTL layout checks, acceptance checklists",
+      "approvals": "auto"
     },
     {
       "id": "yasmin",
@@ -195,7 +202,8 @@
       "department": "Growth",
       "provider": "claude",
       "muted": false,
-      "scope": "marketing copy, headlines, SEO, ads, social posts, funnels and growth experiments"
+      "scope": "marketing copy, headlines, SEO, ads, social posts, funnels and growth experiments",
+      "approvals": "auto"
     },
     {
       "id": "nour",
@@ -220,7 +228,8 @@
       "department": "Design",
       "provider": "claude",
       "muted": false,
-      "scope": "visual design: layout, typography, color, spacing, motion, design critique of pages and screens, Arabic RTL design"
+      "scope": "visual design: layout, typography, color, spacing, motion, design critique of pages and screens, Arabic RTL design",
+      "approvals": "auto"
     },
     {
       "id": "layla",
@@ -245,7 +254,8 @@
       "department": "Product",
       "provider": "claude",
       "muted": false,
-      "scope": "product specs: user stories, scope cuts, acceptance criteria, what to build and why, feature prioritization"
+      "scope": "product specs: user stories, scope cuts, acceptance criteria, what to build and why, feature prioritization",
+      "approvals": "auto"
     }
   ],
   "mcpServers": {},
@@ -255,7 +265,20 @@
     "maxTurnsPerReply": 40,
     "groupMode": "smart",
     "language": "auto",
-    "notifications": true
+    "notifications": true,
+    "autoReview": []
   },
-  "providers": {}
+  "providers": {},
+  "skills": {
+    "standup": {
+      "name": "Standup",
+      "description": "3-line status: shipped / blocked / next",
+      "body": "Reply with exactly three lines: shipped, blocked, next. One clause each, no preamble."
+    },
+    "qa-checklist": {
+      "name": "QA checklist",
+      "description": "Concrete test checklist for something that was built",
+      "body": "Read the file or page in question first. Return a checklist of at most 8 concrete checks (device, step, expected result). Mark any you already verified with your tools. No general advice."
+    }
+  }
 }

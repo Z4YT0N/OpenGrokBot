@@ -1,4 +1,4 @@
-import type { AccountStatus, AppState, Conversation, Message, ServerEvent, Team, UsageSummary } from '../../shared/types'
+import type { AccountStatus, AppState, ApprovalRequest, Conversation, Message, Routine, ServerEvent, Team, UsageSummary } from '../../shared/types'
 
 export interface UiState {
   team: Team | null
@@ -8,6 +8,8 @@ export interface UiState {
   connected: boolean
   usage: UsageSummary
   account: AccountStatus
+  routines: Routine[]
+  approvals: ApprovalRequest[]
 }
 
 export type Action =
@@ -25,6 +27,8 @@ export const initialState: UiState = {
   connected: false,
   usage: { byAgent: {}, byConversation: {}, byModel: {}, total: emptyTotals },
   account: { windows: {} },
+  routines: [],
+  approvals: [],
 }
 
 function patchConversation(state: UiState, id: string, fn: (c: Conversation) => Conversation): UiState {
@@ -51,6 +55,8 @@ export function reducer(state: UiState, action: Action): UiState {
         busy: new Set(action.state.busy),
         usage: action.state.usage,
         account: action.state.account,
+        routines: action.state.routines ?? [],
+        approvals: action.state.approvals ?? [],
       }
     case 'event': {
       const ev = action.event
@@ -92,6 +98,12 @@ export function reducer(state: UiState, action: Action): UiState {
           return { ...state, account: ev.account }
         case 'team':
           return { ...state, team: ev.team, conversations: ev.conversations }
+        case 'approval:request':
+          return { ...state, approvals: [...state.approvals.filter((a) => a.id !== ev.request.id), ev.request] }
+        case 'approval:resolved':
+          return { ...state, approvals: state.approvals.filter((a) => a.id !== ev.id) }
+        case 'routines':
+          return { ...state, routines: ev.routines }
         default:
           return state
       }

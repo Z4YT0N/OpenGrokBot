@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import type { Conversation, Team } from '../../../shared/types'
+import type { ApprovalRequest, Conversation, Team } from '../../../shared/types'
 import { conversationAvatars, conversationTitle, formatTime, personFor } from '../people'
+import { lastRead } from '../unread'
 import { Avatar, AvatarCluster } from './Avatar'
 
 interface SidebarProps {
@@ -8,15 +9,21 @@ interface SidebarProps {
   conversations: Conversation[]
   activeId: string
   busy: Set<string>
+  approvals: ApprovalRequest[]
+  /** Bumped by the parent whenever read markers change, so badges refresh. */
+  readTick: number
   onSelect: (id: string) => void
   onMenu: (conversationId: string, x: number, y: number) => void
   onSettings: () => void
   onNewChat: () => void
+  onSearch: () => void
 }
 
-export function Sidebar({ team, conversations, activeId, busy, onSelect, onMenu, onSettings, onNewChat }: SidebarProps) {
+export function Sidebar({ team, conversations, activeId, busy, approvals, readTick, onSelect, onMenu, onSettings, onNewChat, onSearch }: SidebarProps) {
   const [q, setQ] = useState('')
+  const [showHidden, setShowHidden] = useState(false)
   const owner = personFor(team, 'user')
+  void readTick
   const rank = (c: Conversation): number => {
     if (c.pinned) return -2
     if (c.id === 'group') return -1
@@ -27,70 +34,87 @@ export function Sidebar({ team, conversations, activeId, busy, onSelect, onMenu,
   }
   const ordered = [...conversations].sort((a, b) => rank(a) - rank(b) || (b.createdAt ?? 0) - (a.createdAt ?? 0))
   const filtered = ordered.filter((c) => conversationTitle(team, c).toLowerCase().includes(q.trim().toLowerCase()))
+  const visible = filtered.filter((c) => !c.hidden)
+  const hidden = filtered.filter((c) => c.hidden)
+  const attention = new Set(approvals.map((a) => a.conversationId))
+
+  const row = (c: Conversation) => {
+    const last = c.messages[c.messages.length - 1]
+    const people = conversationAvatars(c).map((id) => personFor(team, id))
+    const active = c.id === activeId
+    const preview = last ? previewOf(team, c, last.authorId, last.text) : c.kind === 'group' ? 'Say hi to the team' : 'Start a conversation'
+    const agent = c.kind === 'dm' ? people[0]?.agent : undefined
+    const since = lastRead(c.id)
+    const unread = active ? 0 : c.messages.filter((m) => m.authorId !== 'user' && m.status === 'done' && m.createdAt > since).length
+    const needs = attention.has(c.id)
+    return (
+      <button
+        key={c.id}
+        type="button"
+        className={`conversation${active ? ' is-active' : ''}${unread > 0 ? ' is-unread' : ''}`}
+        onClick={() => onSelect(c.id)}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          onMenu(c.id, e.clientX, e.clientY)
+        }}
+      >
+        <span className="conversation-avatar">
+          <AvatarCluster people={people} size={c.kind === 'group' ? 40 : 44} />
+        </span>
+        <span className="conversation-body">
+          <span className="conversation-row">
+            <span className="conversation-title">
+              {c.pinned && <PinIcon />}
+              {conversationTitle(team, c)}
+            </span>
+            {agent?.department && <span className="badge">{agent.department}</span>}
+            {agent?.muted && <span className="badge" title="Muted in groups">muted</span>}
+            {last && <span className="conversation-time">{formatTime(last.createdAt)}</span>}
+          </span>
+          <span className="conversation-row">
+            <span className="conversation-preview">{preview}</span>
+            {needs ? <span className="dot is-attention" title="Needs your approval" /> : busy.has(c.id) ? <span className="dot" aria-label="Replying" /> : unread > 0 ? <span className="unread">{unread > 99 ? '99+' : unread}</span> : null}
+          </span>
+        </span>
+        <span
+          className="conversation-more"
+          role="button"
+          tabIndex={-1}
+          aria-label="More"
+          onClick={(e) => {
+            e.stopPropagation()
+            const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+            onMenu(c.id, r.left, r.bottom + 4)
+          }}
+        >
+          <MoreIcon />
+        </span>
+      </button>
+    )
+  }
 
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
+        <button type="button" className="icon-button" title="Search (Ctrl+K)" aria-label="Search" onClick={onSearch}>
+          <SearchIcon />
+        </button>
         <button type="button" className="icon-button" title="New group chat" aria-label="New group chat" onClick={onNewChat}>
           <PlusIcon />
         </button>
       </div>
       <label className="search">
         <SearchIcon />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter" />
       </label>
       <nav className="conversation-list">
-        {filtered.map((c) => {
-          const last = c.messages[c.messages.length - 1]
-          const people = conversationAvatars(c).map((id) => personFor(team, id))
-          const active = c.id === activeId
-          const preview = last ? previewOf(team, c, last.authorId, last.text) : c.kind === 'group' ? 'Say hi to the team' : 'Start a conversation'
-          const agent = c.kind === 'dm' ? people[0]?.agent : undefined
-          return (
-            <button
-              key={c.id}
-              type="button"
-              className={`conversation${active ? ' is-active' : ''}`}
-              onClick={() => onSelect(c.id)}
-              onContextMenu={(e) => {
-                e.preventDefault()
-                onMenu(c.id, e.clientX, e.clientY)
-              }}
-            >
-              <span className="conversation-avatar">
-                <AvatarCluster people={people} size={c.kind === 'group' ? 40 : 44} />
-              </span>
-              <span className="conversation-body">
-                <span className="conversation-row">
-                  <span className="conversation-title">
-                    {c.pinned && <PinIcon />}
-                    {conversationTitle(team, c)}
-                  </span>
-                  {agent?.department && <span className="badge">{agent.department}</span>}
-                  {agent?.muted && <span className="badge" title="Muted in groups">muted</span>}
-                  {last && <span className="conversation-time">{formatTime(last.createdAt)}</span>}
-                </span>
-                <span className="conversation-row">
-                  <span className="conversation-preview">{preview}</span>
-                  {busy.has(c.id) && <span className="dot" aria-label="Replying" />}
-                </span>
-              </span>
-              <span
-                className="conversation-more"
-                role="button"
-                tabIndex={-1}
-                aria-label="More"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                  onMenu(c.id, r.left, r.bottom + 4)
-                }}
-              >
-                <MoreIcon />
-              </span>
-            </button>
-          )
-        })}
+        {visible.map(row)}
+        {hidden.length > 0 && (
+          <button type="button" className="hidden-toggle" onClick={() => setShowHidden((v) => !v)}>
+            {showHidden ? 'Hide hidden chats' : `Show ${hidden.length} hidden chat${hidden.length === 1 ? '' : 's'}`}
+          </button>
+        )}
+        {showHidden && hidden.map(row)}
       </nav>
       <div className="sidebar-bottom">
         <button type="button" className="sidebar-item" onClick={onSettings}>

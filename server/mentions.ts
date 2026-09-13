@@ -6,6 +6,7 @@ import type { Agent } from '../shared/types.js'
  * in team.json, so we match the longest name first.
  */
 export function findMentions(text: string, agents: Agent[], exclude?: string): Agent[] {
+  if (/(^|[^a-z0-9_])@everyone(?![a-z0-9_])/i.test(text)) return agents.filter((a) => a.id !== exclude)
   const found: { index: number; agent: Agent }[] = []
   const sorted = [...agents].sort((a, b) => b.name.length - a.name.length)
   const lower = text.toLowerCase()

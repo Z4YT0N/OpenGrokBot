@@ -1,0 +1,12 @@
+{
+  "name": "OpenGrokBot",
+  "short_name": "OpenGrokBot",
+  "description": "Your own AI company in a group chat.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#141414",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

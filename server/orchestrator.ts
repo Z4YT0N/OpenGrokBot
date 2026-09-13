@@ -1,17 +1,19 @@
 import { randomUUID } from 'node:crypto'
 import type { Account } from './account.js'
 import { providerKeepsSession, runAgentTurn } from './agent.js'
+import { reviewByRules, type Approvals } from './approvals.js'
 import { emit } from './events.js'
+import type { Memory } from './memory.js'
 import { findMentions } from './mentions.js'
 import { routeSpeakers, type RouteMode } from './router.js'
 import type { Store } from './store.js'
 import { summarizeUsage } from './usage.js'
-import type { Agent, Conversation, Message, ProviderDef, Team } from '../shared/types.js'
+import type { Agent, Attachment, Conversation, Message, ProviderDef, Routine, Team } from '../shared/types.js'
 
 interface RoundState {
   running: boolean
   abort: AbortController | null
-  pending: Message[]
+  pending: { message: Message; forced?: Agent[]; note?: string }[]
 }
 
 /**
@@ -29,9 +31,29 @@ export function initialQueue(team: Team, conversation: Conversation, userText: s
   return null
 }
 
+/** Expand /skill-id tokens into the skill's instructions. Exported for tests. */
+export function expandSkills(team: Team, text: string): string {
+  return text.replace(/(^|\s)\/([a-z0-9_-]+)\b/g, (whole, lead: string, id: string) => {
+    const skill = team.skills[id]
+    if (!skill) return whole
+    return `${lead}[Skill "${skill.name}": ${skill.body.trim()}]`
+  })
+}
+
 const BUILD_NOTE = 'Dispatcher: the boss asked for something to be made. Build it now with your tools, then reply with the full path and one or two sentences. No plans, no options, no questions.'
+const ROUTINE_NOTE = 'This is a scheduled routine, not a live chat. Do the job fully with your tools, then post the result here. If a source is unavailable, say so instead of guessing.'
 
 const FALLBACK_PROVIDER: ProviderDef = { kind: 'claude', label: 'Claude (subscription)' }
+
+export interface PostOptions {
+  attachments?: Attachment[]
+  replyTo?: Message['replyTo']
+  /** Author id; defaults to the owner. Routines post as 'routine'. */
+  authorId?: string
+  /** Skip routing and make exactly these employees reply. */
+  forced?: Agent[]
+  note?: string
+}
 
 export class Orchestrator {
   private readonly rounds = new Map<string, RoundState>()
@@ -40,6 +62,8 @@ export class Orchestrator {
     private readonly getTeam: () => Team,
     private readonly store: Store,
     private readonly account: Account,
+    private readonly approvals: Approvals,
+    private readonly memory: Memory,
   ) {}
 
   isBusy(conversationId: string): boolean {
@@ -50,28 +74,46 @@ export class Orchestrator {
     return [...this.rounds.entries()].filter(([, s]) => s.running).map(([id]) => id)
   }
 
-  /** Post an owner message and start (or queue) a round of replies. */
-  post(conversationId: string, text: string): Message {
+  /** Post a message and start (or queue) a round of replies. */
+  post(conversationId: string, text: string, opts: PostOptions = {}): Message {
     const conversation = this.store.get(conversationId)
     if (!conversation) throw new Error(`unknown conversation ${conversationId}`)
     const message: Message = {
       id: randomUUID(),
       conversationId,
-      authorId: 'user',
-      text,
+      authorId: opts.authorId ?? 'user',
+      text: expandSkills(this.getTeam(), text),
       createdAt: Date.now(),
       status: 'done',
+      ...(opts.attachments?.length ? { attachments: opts.attachments } : {}),
+      ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
     }
     this.store.addMessage(conversationId, message)
     emit({ type: 'message:done', message })
 
     const state = this.state(conversationId)
-    if (state.running) {
-      state.pending.push(message)
-    } else {
-      void this.runRound(conversationId, message)
-    }
+    const job = { message, ...(opts.forced ? { forced: opts.forced } : {}), ...(opts.note ? { note: opts.note } : {}) }
+    if (state.running) state.pending.push(job)
+    else void this.runRound(conversationId, job)
     return message
+  }
+
+  /** Run a routine: post its instruction as a routine message and make its owner reply. */
+  async runRoutine(routine: Routine): Promise<{ messageId?: string }> {
+    const team = this.getTeam()
+    const agent = team.agents.find((a) => a.id === routine.agentId)
+    if (!agent) throw new Error(`employee ${routine.agentId} no longer exists`)
+    const conversation = this.store.get(routine.conversationId)
+    if (!conversation) throw new Error(`conversation ${routine.conversationId} no longer exists`)
+    if (!conversation.memberIds.includes(agent.id)) throw new Error(`${agent.name} is not in that conversation`)
+    const before = conversation.messages.length
+    const trigger = this.post(routine.conversationId, `⏰ ${routine.name}\n${routine.instruction}`, { authorId: 'routine', forced: [agent], note: ROUTINE_NOTE })
+    await this.waitForIdle(routine.conversationId)
+    const reply = this.store.get(routine.conversationId)?.messages.slice(before + 1).find((m) => m.authorId === agent.id)
+    if (!reply) return {}
+    if (reply.status === 'error') throw new Error(reply.text.replace(/^⚠️\s*/, ''))
+    void trigger
+    return { messageId: reply.id }
   }
 
   stop(conversationId: string): void {
@@ -86,7 +128,7 @@ export class Orchestrator {
     const team = this.getTeam()
     const base = team.agents[0]
     const probe: Agent = {
-      ...(base ?? { id: 'x', name: 'X', role: 'X', color: '#fff', shape: 'blob', permissionMode: 'dontAsk', effort: 'low', personality: '', tools: [], mcpServers: [], inheritClaudeSettings: false, autoApproveTools: false, muted: false, model: '', provider: 'claude' }),
+      ...(base ?? { id: 'x', name: 'X', role: 'X', color: '#fff', shape: 'blob', permissionMode: 'dontAsk', effort: 'low', personality: '', tools: [], mcpServers: [], inheritClaudeSettings: false, autoApproveTools: false, muted: false, model: '', provider: 'claude', approvals: 'auto' }),
       id: 'probe',
       name: 'PROBE',
       provider: 'claude',
@@ -96,6 +138,7 @@ export class Orchestrator {
       mcpServers: [],
       inheritClaudeSettings: false,
       autoApproveTools: false,
+      approvals: 'auto',
       personality: 'Reply with the single word OK.',
     }
     const conversation: Conversation = {
@@ -124,6 +167,17 @@ export class Orchestrator {
     emit({ type: 'account', account: this.account.get() })
   }
 
+  private waitForIdle(conversationId: string): Promise<void> {
+    return new Promise((resolve) => {
+      const check = (): void => {
+        const s = this.rounds.get(conversationId)
+        if (!s || (!s.running && s.pending.length === 0)) resolve()
+        else setTimeout(check, 500)
+      }
+      check()
+    })
+  }
+
   private state(conversationId: string): RoundState {
     let s = this.rounds.get(conversationId)
     if (!s) {
@@ -133,31 +187,46 @@ export class Orchestrator {
     return s
   }
 
-  private async runRound(conversationId: string, trigger: Message): Promise<void> {
+  private async runRound(conversationId: string, job: RoundState['pending'][number]): Promise<void> {
     const state = this.state(conversationId)
     state.running = true
     state.abort = new AbortController()
     emit({ type: 'round', conversationId, running: true })
+    const startIndex = this.store.get(conversationId)?.messages.length ?? 0
+    const spoke = new Set<string>()
     try {
-      await this.speakers(conversationId, trigger, state.abort.signal)
+      await this.speakers(conversationId, job, state.abort.signal, spoke)
     } finally {
       state.running = false
       state.abort = null
       emit({ type: 'round', conversationId, running: false })
+      this.remember(conversationId, startIndex - 1, spoke)
       const next = state.pending.shift()
       if (next) void this.runRound(conversationId, next)
     }
   }
 
-  private async speakers(conversationId: string, trigger: Message, signal: AbortSignal): Promise<void> {
+  /** Background memory update for everyone who spoke this round. */
+  private remember(conversationId: string, fromIndex: number, spoke: Set<string>): void {
+    const team = this.getTeam()
+    const conversation = this.store.get(conversationId)
+    if (!conversation || spoke.size === 0) return
+    const recent = conversation.messages.slice(Math.max(0, fromIndex))
+    for (const id of spoke) {
+      const agent = team.agents.find((a) => a.id === id)
+      if (agent) void this.memory.update(team, agent, recent)
+    }
+  }
+
+  private async speakers(conversationId: string, job: RoundState['pending'][number], signal: AbortSignal, spoke: Set<string>): Promise<void> {
     const conversation = this.store.get(conversationId)
     if (!conversation) return
     const team = this.getTeam()
     const members = team.agents.filter((a) => conversation.memberIds.includes(a.id))
-    let queue = initialQueue(team, conversation, trigger.text)
+    let queue = job.forced ?? initialQueue(team, conversation, job.message.text)
     let mode: RouteMode = 'discuss'
     if (queue === null) {
-      const route = await routeSpeakers(team, conversation, trigger.text, signal)
+      const route = await routeSpeakers(team, conversation, job.message.text, signal)
       queue = route.speakers
       mode = route.mode
       console.log(`[router] ${conversation.id}: ${route.speakers.map((a) => a.name).join(', ') || 'nobody'} (${route.mode}) — ${route.why}`)
@@ -173,9 +242,11 @@ export class Orchestrator {
       if (this.state(conversationId).pending.length > 0) break
       count++
       turns.set(agent.id, (turns.get(agent.id) ?? 0) + 1)
-      const note = first && mode === 'build' && agent.tools.some((t) => ['Edit', 'Write'].includes(t)) ? BUILD_NOTE : undefined
+      const buildNote = first && mode === 'build' && agent.tools.some((t) => ['Edit', 'Write'].includes(t)) ? BUILD_NOTE : undefined
+      const note = first ? (job.note ?? buildNote) : undefined
       first = false
       const reply = await this.turn(conversationId, agent, signal, note)
+      if (reply) spoke.add(agent.id)
       if (!reply) continue
       for (const m of findMentions(reply, members, agent.id)) {
         const taken = turns.get(m.id) ?? 0
@@ -213,6 +284,7 @@ export class Orchestrator {
     // Sessions are per provider kind: switching an employee to another provider starts fresh.
     const sessionKey = `${agent.id}@${provider.kind}`
     const sessionId = providerKeepsSession(provider.kind) ? conversation.sessions[sessionKey] : undefined
+    const notes = this.memory.read(agent.id)
 
     const result = await runAgentTurn({
       team,
@@ -221,6 +293,7 @@ export class Orchestrator {
       provider,
       sessionId,
       signal,
+      notes,
       ...(note ? { note } : {}),
       handlers: {
         onDelta: (delta) => {
@@ -242,6 +315,15 @@ export class Orchestrator {
         onRateLimit: (info) => {
           this.account.noteRateLimit(info)
           emit({ type: 'account', account: this.account.get() })
+        },
+        onToolPermission: async (tool, input) => {
+          const verdict = reviewByRules(this.getTeam(), tool, input)
+          if (verdict === 'allow') return true
+          start()
+          const line = `Waiting for your approval: ${tool}`
+          message.activity?.push(line)
+          emit({ type: 'message:activity', conversationId, messageId: message.id, line })
+          return this.approvals.ask(conversationId, agent.id, tool, input, signal)
         },
       },
     })

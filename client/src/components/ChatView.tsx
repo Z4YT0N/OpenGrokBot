@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Conversation, Message, Team, UsageSummary } from '../../../shared/types'
+import type { ApprovalRequest, Conversation, Message, Team, UsageSummary } from '../../../shared/types'
 import { formatCost, formatDuration, formatTokens, modelLabel } from '../format'
-import { conversationAvatars, conversationTitle, personFor } from '../people'
+import { conversationAvatars, conversationTitle, personFor, type Person } from '../people'
+import { ApprovalCard } from './Approval'
 import { Avatar, AvatarCluster } from './Avatar'
+import type { ReplyTarget } from './Composer'
+import { AttachmentList, PreviewCard, producedFiles } from './Preview'
 import { RichText } from './RichText'
 
 interface ChatViewProps {
@@ -10,7 +13,10 @@ interface ChatViewProps {
   conversation: Conversation
   typing: Set<string>
   usage: UsageSummary
+  approvals: ApprovalRequest[]
+  jumpTo: string | null
   onEditAgent: (id: string) => void
+  onReply: (target: ReplyTarget) => void
   profileOpen: boolean
 }
 
@@ -32,15 +38,21 @@ function groupMessages(messages: Message[]): Group[] {
   return groups
 }
 
-export function ChatView({ team, conversation, typing, usage, onEditAgent, profileOpen }: ChatViewProps) {
+function personOf(team: Team, id: string): Person {
+  if (id === 'routine') return { id, label: 'ROUTINE', name: 'Routine', color: '#f59e0b', kind: 'agent' }
+  return personFor(team, id)
+}
+
+export function ChatView({ team, conversation, typing, usage, approvals, jumpTo, onEditAgent, onReply, profileOpen }: ChatViewProps) {
   const scroller = useRef<HTMLDivElement | null>(null)
   const pinned = useRef(true)
   const [showInfo, setShowInfo] = useState(true)
   const groups = groupMessages(conversation.messages)
   const typingPeople = [...typing].filter((id) => !conversation.messages.some((m) => m.authorId === id && m.status === 'streaming')).map((id) => personFor(team, id))
+  const pendingHere = approvals.filter((a) => a.conversationId === conversation.id)
 
   const lastMessage = conversation.messages[conversation.messages.length - 1]
-  const lastKey = `${conversation.id}:${conversation.messages.length}:${lastMessage?.text.length ?? 0}:${typingPeople.length}`
+  const lastKey = `${conversation.id}:${conversation.messages.length}:${lastMessage?.text.length ?? 0}:${typingPeople.length}:${pendingHere.length}`
   // Keep the view pinned to the bottom while streaming, unless the user scrolled up.
   useEffect(() => {
     const el = scroller.current
@@ -53,6 +65,17 @@ export function ChatView({ team, conversation, typing, usage, onEditAgent, profi
     const el = scroller.current
     if (el) el.scrollTop = el.scrollHeight
   }, [conversation.id])
+
+  useEffect(() => {
+    if (!jumpTo) return
+    const el = document.getElementById(`m-${jumpTo}`)
+    if (!el) return
+    pinned.current = false
+    el.scrollIntoView({ block: 'center' })
+    el.classList.add('is-highlight')
+    const t = setTimeout(() => el.classList.remove('is-highlight'), 2000)
+    return () => clearTimeout(t)
+  }, [jumpTo])
 
   const onScroll = () => {
     const el = scroller.current
@@ -84,11 +107,14 @@ export function ChatView({ team, conversation, typing, usage, onEditAgent, profi
             {groups.length === 0 && (
               <div className="chat-empty">
                 <AvatarCluster people={people} size={56} />
-                <p>{conversation.kind === 'group' ? 'Say something and the team will jump in.' : `Talk to ${people[0]?.label ?? 'your colleague'} privately.`}</p>
+                <p>{conversation.kind === 'group' ? 'Say something and the right people will jump in.' : `Talk to ${people[0]?.label ?? 'your colleague'} privately.`}</p>
               </div>
             )}
             {groups.map((g) => (
-              <MessageGroup key={g.messages[0]?.id ?? g.authorId} team={team} group={g} />
+              <MessageGroup key={g.messages[0]?.id ?? g.authorId} team={team} group={g} onReply={onReply} />
+            ))}
+            {pendingHere.map((r) => (
+              <ApprovalCard key={r.id} team={team} request={r} />
             ))}
             {typingPeople.map((p) => (
               <div key={p.id} className="message-group is-agent">
@@ -126,7 +152,9 @@ export function ChatView({ team, conversation, typing, usage, onEditAgent, profi
                       <span className="info-name">{p.label}</span>
                       {a && (
                         <span className="info-meta">
-                          {(team.providers[a.provider]?.kind ?? 'claude') === 'claude' ? '' : `${team.providers[a.provider]?.label.split(' ')[0] ?? a.provider} · `}{modelLabel(a.model)} · {a.effort}{a.muted ? ' · muted' : ''}
+                          {(team.providers[a.provider]?.kind ?? 'claude') === 'claude' ? '' : `${team.providers[a.provider]?.label.split(' ')[0] ?? a.provider} · `}
+                          {modelLabel(a.model)} · {a.effort}
+                          {a.muted ? ' · muted' : ''}
                           {u ? ` · ${formatTokens(u.inputTokens + u.cacheReadTokens + u.cacheCreationTokens + u.outputTokens)} tok` : ''}
                         </span>
                       )}
@@ -142,11 +170,12 @@ export function ChatView({ team, conversation, typing, usage, onEditAgent, profi
   )
 }
 
-function MessageGroup({ team, group }: { team: Team; group: Group }) {
-  const person = personFor(team, group.authorId)
+function MessageGroup({ team, group, onReply }: { team: Team; group: Group; onReply: (t: ReplyTarget) => void }) {
+  const person = personOf(team, group.authorId)
   const mine = person.kind === 'owner'
+  const isRoutine = group.authorId === 'routine'
   return (
-    <div className={`message-group ${mine ? 'is-mine' : 'is-agent'}`}>
+    <div className={`message-group ${mine ? 'is-mine' : 'is-agent'}${isRoutine ? ' is-routine' : ''}`}>
       {!mine && (
         <span className="message-label" style={{ color: person.color }}>
           {person.label}
@@ -154,10 +183,16 @@ function MessageGroup({ team, group }: { team: Team; group: Group }) {
       )}
       {group.messages.map((m, i) => {
         const last = i === group.messages.length - 1
+        const files = !mine && m.status === 'done' ? producedFiles(m.text) : []
         return (
-          <div key={m.id} className="message-row">
-            {!mine && <span className="message-avatar">{last && <Avatar person={person} size={28} />}</span>}
+          <div key={m.id} id={`m-${m.id}`} className="message-row">
+            {!mine && <span className="message-avatar">{last && (isRoutine ? <span className="routine-avatar">⏰</span> : <Avatar person={person} size={28} />)}</span>}
             <div className="bubble-wrap">
+              {m.replyTo && (
+                <div className="reply-quote" dir="auto">
+                  <strong>{m.replyTo.authorId === 'user' ? team.owner.name : personOf(team, m.replyTo.authorId).name}</strong> {m.replyTo.excerpt}
+                </div>
+              )}
               <div dir="auto" className={`bubble${m.status === 'streaming' ? ' is-streaming' : ''}${m.status === 'error' ? ' is-error' : ''}`}>
                 {m.activity && m.activity.length > 0 && (
                   <div className="activity">
@@ -170,13 +205,28 @@ function MessageGroup({ team, group }: { team: Team; group: Group }) {
                   </div>
                 )}
                 {m.text.length > 0 ? <RichText text={m.text} team={team} /> : m.status === 'streaming' ? <span className="working">working…</span> : null}
+                {m.attachments && m.attachments.length > 0 && <AttachmentList items={m.attachments} />}
               </div>
-              {m.usage && (
-                <div className="message-meta">
-                  {modelLabel(m.usage.model)} · {formatTokens(m.usage.inputTokens + m.usage.cacheReadTokens + m.usage.cacheCreationTokens)} in · {formatTokens(m.usage.outputTokens)} out · {formatCost(m.usage.costUsd)} · {formatDuration(m.usage.durationMs)}
-                  {m.usage.numTurns > 1 ? ` · ${m.usage.numTurns} steps` : ''}
+              {files.length > 0 && (
+                <div className="previews">
+                  {files.map((f) => (
+                    <PreviewCard key={f} path={f} />
+                  ))}
                 </div>
               )}
+              <div className="message-meta">
+                {m.usage && (
+                  <span>
+                    {modelLabel(m.usage.model)} · {formatTokens(m.usage.inputTokens + m.usage.cacheReadTokens + m.usage.cacheCreationTokens)} in · {formatTokens(m.usage.outputTokens)} out · {formatCost(m.usage.costUsd)} · {formatDuration(m.usage.durationMs)}
+                    {m.usage.numTurns > 1 ? ` · ${m.usage.numTurns} steps` : ''}
+                  </span>
+                )}
+                {m.status === 'done' && m.text && (
+                  <button type="button" className="link" onClick={() => onReply({ messageId: m.id, authorId: m.authorId, excerpt: m.text.replace(/\s+/g, ' ').slice(0, 120) })}>
+                    Reply
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )

@@ -1,17 +1,21 @@
 import { useState } from 'react'
 import { RATE_LIMIT_LABELS } from '../../../shared/catalog'
-import type { AccountStatus, Conversation, McpServerDef, Team, TeamSettings, UsageSummary, UsageTotals } from '../../../shared/types'
+import type { AccountStatus, AutoReviewRule, Conversation, McpServerDef, Routine, Team, TeamSettings, UsageSummary, UsageTotals } from '../../../shared/types'
 import { deleteMcpServer, putMcpServer, putSettings, refreshAccount } from '../api'
 import { formatCost, formatRelative, formatTokens, modelLabel } from '../format'
 import { MARKETPLACE, type MarketplaceItem } from '../marketplace'
 import { conversationTitle, personFor } from '../people'
 import { Avatar } from './Avatar'
 import { Providers } from './Providers'
+import { Routines } from './Routines'
+import { Skills } from './Skills'
+import { exportAgentUrl, importAgent } from '../api'
 
-export type SettingsSection = 'general' | 'team' | 'providers' | 'marketplace' | 'usage' | 'account'
+export type SettingsSection = 'general' | 'team' | 'providers' | 'marketplace' | 'routines' | 'skills' | 'usage' | 'account'
 
 interface SettingsProps {
   team: Team
+  routines: Routine[]
   conversations: Conversation[]
   usage: UsageSummary
   account: AccountStatus
@@ -26,6 +30,8 @@ const NAV: { id: SettingsSection; label: string; icon: string }[] = [
   { id: 'team', label: 'Team', icon: '👥' },
   { id: 'providers', label: 'Providers', icon: '🔌' },
   { id: 'marketplace', label: 'Marketplace', icon: '🧩' },
+  { id: 'routines', label: 'Routines', icon: '⏰' },
+  { id: 'skills', label: 'Skills', icon: '🎯' },
   { id: 'usage', label: 'Usage', icon: '📊' },
   { id: 'account', label: 'Claude account', icon: '🔑' },
 ]
@@ -53,6 +59,8 @@ export function Settings(props: SettingsProps) {
           {section === 'team' && <TeamSection {...props} />}
           {section === 'providers' && <Providers team={props.team} />}
           {section === 'marketplace' && <Marketplace {...props} />}
+          {section === 'routines' && <Routines team={props.team} conversations={props.conversations} routines={props.routines} />}
+          {section === 'skills' && <Skills team={props.team} />}
           {section === 'usage' && <Usage {...props} />}
           {section === 'account' && <AccountSection {...props} />}
         </div>
@@ -144,6 +152,21 @@ function General({ team }: SettingsProps) {
           <input type="number" min={1} max={200} value={settings.maxTurnsPerReply} onChange={(e) => setSettings({ ...settings, maxTurnsPerReply: Number(e.target.value) })} />
         </Row>
       </Card>
+      <h4>Auto-review rules</h4>
+      <p className="lead">Employees whose profile says "ask before dangerous tools" stop in the chat for Allow / Deny. Rules decide automatically: "require" wins over "allow". "Always allow" on an approval card adds a rule here.</p>
+      <Card>
+        {settings.autoReview.length === 0 && (
+          <Row title="No rules yet" hint="Example: allow Bash when the command contains 'git status'; require approval for Write when the path contains 'production'." />
+        )}
+        {settings.autoReview.map((r) => (
+          <Row key={r.id} title={`${r.action === 'allow' ? 'Always allow' : 'Require approval for'} ${r.tool}`} hint={r.match ? `when the input contains "${r.match}"` : 'for every call'}>
+            <button type="button" className="btn btn-danger-ghost" onClick={() => setSettings({ ...settings, autoReview: settings.autoReview.filter((x) => x.id !== r.id) })}>
+              Remove
+            </button>
+          </Row>
+        ))}
+        <RuleAdder onAdd={(rule) => setSettings({ ...settings, autoReview: [...settings.autoReview, rule] })} />
+      </Card>
       <div className="actions">
         <span className="status">{status}</span>
         <button type="button" className="btn btn-primary" onClick={() => void save()}>
@@ -166,7 +189,7 @@ function TeamSection({ team, usage, onEditAgent }: SettingsProps) {
           const p = personFor(team, a.id)
           const u = usage.byAgent[a.id]
           return (
-            <button key={a.id} type="button" className="row row-button" onClick={() => onEditAgent(a.id)}>
+            <div key={a.id} className="row row-button" onClick={() => onEditAgent(a.id)} role="button" tabIndex={0}>
               <Avatar person={p} size={36} />
               <div className="row-text">
                 <div className="row-title">
@@ -178,12 +201,18 @@ function TeamSection({ team, usage, onEditAgent }: SettingsProps) {
                   {a.mcpServers.length > 0 && ` · MCP: ${a.mcpServers.join(', ')}`}
                 </div>
               </div>
-              <div className="row-control muted">{u ? `${formatTokens(u.inputTokens + u.outputTokens + u.cacheReadTokens + u.cacheCreationTokens)} tokens · ${formatCost(u.costUsd)}` : 'no usage yet'}</div>
-            </button>
+              <div className="row-control muted">
+                {u ? `${formatTokens(u.inputTokens + u.outputTokens + u.cacheReadTokens + u.cacheCreationTokens)} tokens · ${formatCost(u.costUsd)}` : 'no usage yet'}
+                <a className="btn" href={exportAgentUrl(a.id)} download onClick={(e) => e.stopPropagation()} title="Download this employee as a shareable JSON file">
+                  Export
+                </a>
+              </div>
+            </div>
           )
         })}
       </Card>
       <div className="actions">
+        <ImportButton />
         <button type="button" className="btn btn-primary" onClick={() => onEditAgent(null)}>
           + New employee
         </button>
@@ -568,6 +597,62 @@ function AccountSection({ account }: SettingsProps) {
         )}
         {account.updatedAt && <div className="muted small">Last update {formatRelative(account.updatedAt)}</div>}
       </Card>
+    </>
+  )
+}
+
+function RuleAdder({ onAdd }: { onAdd: (rule: AutoReviewRule) => void }) {
+  const [action, setAction] = useState<'allow' | 'require'>('require')
+  const [tool, setTool] = useState('Bash')
+  const [match, setMatch] = useState('')
+  return (
+    <div className="row rule-adder">
+      <select value={action} onChange={(e) => setAction(e.target.value as 'allow' | 'require')}>
+        <option value="require">Require approval for</option>
+        <option value="allow">Always allow</option>
+      </select>
+      <input value={tool} onChange={(e) => setTool(e.target.value)} placeholder="Tool (Bash, Write, Edit, mcp__github__…, or *)" />
+      <input value={match} onChange={(e) => setMatch(e.target.value)} placeholder="when input contains… (optional)" />
+      <button
+        type="button"
+        className="btn"
+        disabled={!tool.trim()}
+        onClick={() => {
+          onAdd({ id: Math.random().toString(36).slice(2, 10), action, tool: tool.trim(), ...(match.trim() ? { match: match.trim() } : {}) })
+          setMatch('')
+        }}
+      >
+        Add rule
+      </button>
+    </div>
+  )
+}
+
+function ImportButton() {
+  const [error, setError] = useState<string | null>(null)
+  return (
+    <>
+      {error && <span className="status" style={{ color: 'var(--danger)' }}>{error}</span>}
+      <label className="btn">
+        Import employee…
+        <input
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={async (e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (!f) return
+            setError(null)
+            try {
+              const parsed = JSON.parse(await f.text()) as { agent?: unknown }
+              await importAgent(parsed.agent ?? parsed)
+            } catch (err) {
+              setError(err instanceof Error ? err.message : String(err))
+            }
+          }}
+        />
+      </label>
     </>
   )
 }

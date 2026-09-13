@@ -20,7 +20,7 @@ function sandboxFor(tools: string[], autoApprove: boolean): string {
 
 /** OpenAI Codex CLI in headless mode. Uses `codex login` (ChatGPT subscription) unless the provider has an API key. */
 export async function runCodexTurn(params: RunTurnParams): Promise<TurnResult> {
-  const { team, conversation, agent, provider, sessionId, signal, handlers, note } = params
+  const { team, conversation, agent, provider, sessionId, signal, handlers, note, notes } = params
   const started = Date.now()
   const cwd = agent.cwd ?? team.workspace
   const common = ['--json', '--skip-git-repo-check', '-C', cwd, ...(agent.model && agent.model !== 'default' ? ['-m', agent.model] : []), '-s', sandboxFor(agent.tools, agent.autoApproveTools || agent.permissionMode === 'bypassPermissions'), '-c', `model_reasoning_effort="${EFFORT[agent.effort] ?? 'medium'}"`]
@@ -29,7 +29,7 @@ export async function runCodexTurn(params: RunTurnParams): Promise<TurnResult> {
 
   // Codex has no system-prompt flag: the persona rides in the first prompt of the thread.
   const transcript = buildTurnPrompt(team, conversation, agent, sessionId !== undefined, note)
-  const stdin = sessionId ? transcript : `<system>\n${buildSystemPrompt(team, conversation, agent)}\n</system>\n\n${transcript}`
+  const stdin = sessionId ? transcript : `<system>\n${buildSystemPrompt(team, conversation, agent, '', notes ?? '')}\n</system>\n\n${transcript}`
 
   const env: NodeJS.ProcessEnv = { ...process.env }
   if (provider.apiKey) env.OPENAI_API_KEY = provider.apiKey

@@ -7,6 +7,8 @@ export interface TurnHandlers {
   onSession: (sessionId: string) => void
   onInit?: (authSource: string, version: string) => void
   onRateLimit?: (info: RateLimitReport) => void
+  /** Ask the owner whether a tool call may run. Absent = everything allowed. */
+  onToolPermission?: (tool: string, input: Record<string, unknown>) => Promise<boolean>
 }
 
 export interface TurnResult {
@@ -26,6 +28,8 @@ export interface RunTurnParams {
   handlers: TurnHandlers
   /** Optional dispatcher instruction appended to this turn (e.g. "build it now"). */
   note?: string
+  /** The employee's long-term notes, injected into the system prompt. */
+  notes?: string
 }
 
 export type ProviderRunner = (params: RunTurnParams) => Promise<TurnResult>

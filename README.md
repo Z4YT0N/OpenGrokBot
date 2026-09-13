@@ -26,6 +26,13 @@ OMAR:   › Bash rg --files -g '*.ts'   › Read system/DEPLOY.md
 | Real tools | ✅ | ✅ Read/edit files, run commands, web search, subagents, MCP servers |
 | Plugins / MCP | Marketplace | Marketplace of MCP servers (GitHub, Playwright, Postgres, Supabase, Slack, Notion, Context7, Vercel…) + custom |
 | Usage & limits | Plan usage only | Tokens and cost per message, per employee, per conversation, per model; Claude limit windows |
+| Approvals & auto-review | ✅ | ✅ Allow once / Always allow / Deny cards, rules by tool and input |
+| Routines (schedule + webhook triggers) | ✅ | ✅ cron presets + `POST /api/hooks/<id>` |
+| Attachments & result previews | ✅ | ✅ files in, HTML/image cards out |
+| Long-term memory per bot | ✅ | ✅ editable notes per employee |
+| Skills (`/`) | ✅ + teach by demo | ✅ saved skills; teach-by-demo not yet |
+| Search, threads, unread, hide | ✅ | ✅ Ctrl+K search, reply-to, unread, hide, mark unread |
+| Phone | Native apps | PWA over your own server |
 | Edit employees | Name, label, description | Everything: provider, model, effort, personality, tools, permissions, working folder, MCP, mute, duplicate |
 | Group chats | ✅ | ✅ Any subset of the team, pin, rename, export to Markdown |
 | Arabic / RTL | Partial | Native RTL, replies in Egyptian Arabic when you write Arabic |
@@ -34,12 +41,18 @@ OMAR:   › Bash rg --files -g '*.ts'   › Read system/DEPLOY.md
 ## What you get
 
 - **A team, not a chatbot.** Manager, full-stack dev, DevOps, ops, backend, sales, QA, growth, design and product ship in the box. Each has a personality, a color, an avatar shape and a department badge. Add, duplicate, mute or delete anyone in two clicks.
-- **They talk to each other.** Mention someone (`@OMAR`) and only they answer. Post something general and everyone weighs in, in order, each seeing the earlier replies. When an employee mentions a colleague, the colleague answers. Rounds are capped so nobody loops forever, and an employee with nothing to add stays quiet.
+- **They talk to each other, without the noise.** A fast dispatcher reads each message and picks the one to three employees whose job it is; a "build me X" goes to exactly one builder who builds first and talks second. Mention someone (`@OMAR`) and only they answer; `@everyone` for a real all-hands. Employees pull colleagues in with mentions, rounds are capped so nobody loops, and everyone has a lane they stay in.
 - **They do real work.** Employees use Claude Code / Codex / Gemini tools in your workspace: read repos, grep, edit files, run commands, search the web. Tool activity streams live under the message. Permissions and working folder are per employee.
 - **Bring your own subscription.** Claude Code, Codex CLI and Gemini CLI use their own logins. Every employee picks a provider and model, so your manager can be Opus, your dev can be Codex, and your intern can be a free local Ollama model.
 - **MCP marketplace.** One click each, enabled per employee, or point an employee at your whole `~/.claude` setup.
 - **Usage and limits.** Tokens and API-equivalent cost everywhere; your Claude subscription's limit windows with reset times.
-- **The rest.** Group chats, DMs, pins, export, notifications, desktop window (Electron) or browser.
+- **Approvals in the chat.** Set an employee to "ask before Bash/Write/Edit" (or before everything) and each risky tool call shows a card: Allow once, Always allow, Deny. Auto-review rules ("require approval for Write when the path contains production") decide automatically.
+- **Routines.** Schedule a job for one employee (cron presets: every morning, weekdays at 9…) or fire it from a webhook (Slack, GitHub, Zapier, any cron service): `POST /api/hooks/<id>`. Results land in the chat with run history.
+- **Attachments and previews.** Drop images, PDFs, spreadsheets or code into the composer; employees read them with their tools. Files they produce show up as preview cards (HTML pages render inline, images too) with an Open button.
+- **Long-term memory.** Each employee keeps notes across conversations (your preferences, project facts, their commitments), rewritten by a cheap model after they speak. Editable and clearable in their profile.
+- **Skills.** Save a way of doing a task and invoke it with `/name` in the composer. Claude employees can also use your `~/.claude/skills`.
+- **Grok Bot conveniences.** Reply to a message, @everyone, unread badges, "needs attention" dot, hide chats, mark unread, Ctrl+K search across all messages, voice dictation, desktop notifications, export/import employees as JSON, pins, export to Markdown.
+- **Desktop, browser, or phone.** Electron window, a browser tab, or install it as a PWA on your phone when the server runs with `HOST=0.0.0.0 OPENGROKBOT_TOKEN=…` (on a VPS, or your PC over Tailscale).
 
 | Providers | Usage | Marketplace |
 |---|---|---|
@@ -107,7 +120,8 @@ OpenGrokBot هو بديل مجاني ومفتوح المصدر لـ Grok Bot (ب
 
 ## Settings
 
-- **General:** company, your name, workspace, group reply mode (everyone / mentions only), reply language (auto / Egyptian Arabic / English), notifications, round caps.
+- **General:** company, your name, workspace, group reply mode (smart routing / everyone / mentions only), reply language (auto / Egyptian Arabic / English), notifications, round caps, auto-review rules.
+- **Routines** and **Skills:** see above.
 - **Team:** every employee; click to edit name, role, label, color, shape, provider, model, effort, personality, tools, permissions, working folder, MCP servers, auto-approve, mute.
 - **Providers:** status of each CLI login, API keys, and any number of OpenAI-compatible providers with presets (Kimi, xAI, OpenRouter, DeepSeek, Groq, OpenAI, Mistral, Ollama).
 - **Marketplace:** one-click MCP servers or a custom stdio/HTTP/SSE server.
@@ -128,9 +142,20 @@ Everything the UI edits lives here. Safe to edit by hand; restart afterwards.
 | `agents[].mcpServers`, `inheritClaudeSettings` | Claude only: team MCP servers to enable, and whether to load your `~/.claude` setup. |
 | `agents[].muted` | Only speaks in groups when mentioned. |
 | `providers` | `{ kind, label, apiKey?, baseUrl?, models? }`. Built-ins `claude`, `codex`, `gemini` always exist. |
-| `settings` | `groupMode`, `language`, `notifications`, `maxMessagesPerRound`, `maxTurnsPerAgentPerRound`, `maxTurnsPerReply`. |
+| `agents[].scope` | One line of what they own; drives smart routing and stay-in-lane behavior. |
+| `agents[].approvals` | `auto`, `ask-dangerous`, `ask-all`. |
+| `skills` | `{ id: { name, description, body } }`, invoked with `/id`. |
+| `settings` | `groupMode` (`smart`/`everyone`/`mentions-only`), `language`, `notifications`, `autoReview[]`, `maxMessagesPerRound`, `maxTurnsPerAgentPerRound`, `maxTurnsPerReply`. |
 
-Conversations are JSON files under `data/conversations/`.
+Conversations are JSON files under `data/conversations/`; routines in `data/routines.json`; memory in `data/memory/<employee>.md`; uploads in `data/uploads/`.
+
+## Use it from your phone
+
+```bash
+HOST=0.0.0.0 OPENGROKBOT_TOKEN=some-long-secret npm start
+```
+
+Open `http://<your-pc-or-vps>:4310/?token=some-long-secret` on the phone once (the token is then remembered as a cookie), then "Add to Home Screen". Everything, including approvals and notifications, works there. On a VPS the server keeps running while your laptop is closed; put it behind Tailscale or a reverse proxy with HTTPS.
 
 ## Layout
 

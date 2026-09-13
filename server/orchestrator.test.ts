@@ -2,18 +2,20 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { buildTurnPrompt } from './agent.js'
 import { findMentions } from './mentions.js'
-import { initialQueue } from './orchestrator.js'
+import { expandSkills, initialQueue } from './orchestrator.js'
+import { nextRun, parseCron } from './cron.js'
+import { reviewByRules } from './approvals.js'
 import { __test as routerTest } from './router.js'
 import type { Agent, Conversation, Team } from '../shared/types.js'
 
 function agent(id: string, name: string): Agent {
-  return { id, name, role: 'ROLE', color: '#fff', model: 'claude-opus-5', effort: 'low', personality: 'p', tools: [], permissionMode: 'dontAsk', shape: 'blob', mcpServers: [], inheritClaudeSettings: false, autoApproveTools: false, provider: 'claude', muted: false }
+  return { id, name, role: 'ROLE', color: '#fff', model: 'claude-opus-5', effort: 'low', personality: 'p', tools: [], permissionMode: 'dontAsk', shape: 'blob', mcpServers: [], inheritClaudeSettings: false, autoApproveTools: false, provider: 'claude', muted: false, approvals: 'auto' }
 }
 
 const khaled = agent('khaled', 'KHALED')
 const omar = agent('omar', 'OMAR')
 const sara = agent('sara', 'SARA ALI')
-const team: Team = { company: 'Co', owner: { id: 'user', name: 'Mahmoud Amr', title: 'CEO' }, workspace: '.', agents: [khaled, omar, sara], mcpServers: {}, providers: { claude: { kind: 'claude', label: 'Claude' } }, settings: { maxMessagesPerRound: 8, maxTurnsPerAgentPerRound: 2, maxTurnsPerReply: 40, groupMode: 'everyone', language: 'auto', notifications: true } }
+const team: Team = { company: 'Co', owner: { id: 'user', name: 'Mahmoud Amr', title: 'CEO' }, workspace: '.', agents: [khaled, omar, sara], mcpServers: {}, providers: { claude: { kind: 'claude', label: 'Claude' } }, settings: { maxMessagesPerRound: 8, maxTurnsPerAgentPerRound: 2, maxTurnsPerReply: 40, groupMode: 'everyone', language: 'auto', notifications: true, autoReview: [] }, skills: { standup: { name: 'Standup', description: '', body: 'List what shipped, what is blocked, what is next.' } } }
 const smartTeam: Team = { ...team, settings: { ...team.settings, groupMode: 'smart' } }
 
 function group(memberIds = ['user', 'khaled', 'omar', 'sara']): Conversation {
@@ -68,4 +70,29 @@ test('buildTurnPrompt only includes messages since the agent last spoke when it 
   const fresh = buildTurnPrompt(team, c, omar, false)
   assert.ok(fresh.includes('[Mahmoud Amr]: first'))
   assert.ok(fresh.includes('[OMAR (you)]: my reply'), 'stateless providers see their own earlier lines marked (you)')
+})
+
+test('@everyone mentions every member except the speaker', () => {
+  assert.deepEqual(findMentions('@everyone status?', team.agents, 'omar').map((a) => a.id), ['khaled', 'sara'])
+})
+
+test('expandSkills replaces /skill tokens and leaves unknown ones', () => {
+  assert.equal(expandSkills(team, '/standup please'), '[Skill "Standup": List what shipped, what is blocked, what is next.] please')
+  assert.equal(expandSkills(team, 'see /unknown and a/b'), 'see /unknown and a/b')
+})
+
+test('cron: parse, next run, and bad input', () => {
+  const n = nextRun('0 8 * * *', new Date(2026, 8, 13, 9, 0))
+  assert.ok(n && n.getHours() === 8 && n.getDate() === 14)
+  const w = nextRun('0 9 * * 0-4', new Date(2026, 8, 11, 12, 0)) // Friday → Sunday 09:00
+  assert.ok(w && w.getDay() === 0 && w.getHours() === 9)
+  assert.throws(() => parseCron('99 * * * *'))
+  assert.throws(() => parseCron('* * *'))
+})
+
+test('auto-review: require beats allow, no rule asks', () => {
+  const t2: Team = { ...team, settings: { ...team.settings, autoReview: [{ id: '1', action: 'allow', tool: 'Bash' }, { id: '2', action: 'require', tool: 'Bash', match: 'rm -rf' }] } }
+  assert.equal(reviewByRules(t2, 'Bash', { command: 'git status' }), 'allow')
+  assert.equal(reviewByRules(t2, 'Bash', { command: 'rm -rf dist' }), 'require')
+  assert.equal(reviewByRules(t2, 'Write', { file_path: 'x' }), 'ask')
 })

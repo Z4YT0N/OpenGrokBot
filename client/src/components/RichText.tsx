@@ -5,7 +5,7 @@ import { personFor } from '../people'
 import { Avatar } from './Avatar'
 
 /** Absolute file paths employees produce (Windows or POSIX) become "Open" chips. */
-const FILE_PATH_SOURCE = String.raw`(?:[A-Za-z]:[\\/]|/(?:home|Users|tmp|var|opt|srv)/)[^\s\x60"'<>|*?]+?\.(?:html?|md|txt|json|ts|tsx|js|jsx|css|py|pdf|png|jpe?g|svg|csv|xlsx?|docx?|pptx?|sql|sh|ps1|yml|yaml|toml)(?![\w./\\])`
+const FILE_PATH_SOURCE = String.raw`(?:[A-Za-z]:[\\/]|/(?:home|Users|tmp|var|opt|srv)/)[^\x60"'<>|*?\n]+?\.(?:html?|md|txt|json|ts|tsx|js|jsx|css|py|pdf|png|jpe?g|svg|csv|xlsx?|docx?|pptx?|sql|sh|ps1|yml|yaml|toml)(?![\w./\\])`
 const FILE_PATH_EXACT = new RegExp(`^${FILE_PATH_SOURCE}$`, 'i')
 
 interface RichTextProps {

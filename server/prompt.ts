@@ -46,12 +46,13 @@ export function toolsNote(agent: Agent, extra = ''): string {
   return `\nYou have no tools. You cannot create files or look things up: if something needs building or checking, hand it in one line to the colleague who can.`
 }
 
-export function buildSystemPrompt(team: Team, conversation: Conversation, agent: Agent, extraToolsNote = ''): string {
+export function buildSystemPrompt(team: Team, conversation: Conversation, agent: Agent, extraToolsNote = '', notes = ''): string {
   const place = conversation.kind === 'group' ? `the "${conversation.name}" group chat` : `a private direct-message chat with ${team.owner.name}`
   const other = team.agents.find((a) => a.id !== agent.id)?.name ?? 'NAME'
   const boss = team.owner.name.split(/\s+/)[0] ?? team.owner.name
   const lane = agent.scope ? `\n- Your lane: ${agent.scope}. Speak only about that. If the topic is outside your lane and nobody mentioned you, reply exactly ${SKIP_TOKEN}. If it needs a colleague, one line handing it to them with @NAME.` : ''
-  return `${agent.personality}
+  const memory = notes.trim() ? `\n\nYour long-term notes (facts and preferences you learned earlier; trust the conversation over them when they conflict):\n${notes.trim()}` : ''
+  return `${agent.personality}${memory}
 
 You work at ${team.company}. You are chatting in ${place}. Members:
 ${roster(team, conversation, agent)}
@@ -91,7 +92,12 @@ export function buildTurnPrompt(team: Team, conversation: Conversation, agent: A
     .filter((m) => m.status === 'done' && m.text.trim().length > 0 && (hasSession ? m.authorId !== agent.id : true))
   const window = fresh.slice(-40)
   const skipped = fresh.length - window.length
-  const lines = window.map((m) => `[${names.get(m.authorId) ?? m.authorId}${m.authorId === agent.id ? ' (you)' : ''}]: ${m.text}`)
+  const lines = window.map((m) => {
+    const who = m.authorId === 'routine' ? 'Routine' : (names.get(m.authorId) ?? m.authorId)
+    const quote = m.replyTo ? `(replying to ${names.get(m.replyTo.authorId) ?? m.replyTo.authorId}: "${m.replyTo.excerpt}") ` : ''
+    const files = m.attachments?.length ? `\n(attached files: ${m.attachments.map((a) => a.path).join(', ')} — read them with your tools)` : ''
+    return `[${who}${m.authorId === agent.id ? ' (you)' : ''}]: ${quote}${m.text}${files}`
+  })
   const head = skipped > 0 ? `(${skipped} earlier messages omitted)\n` : ''
   const tail = note ? `\n\n(${note})` : ''
   return `${head}${lines.join('\n\n')}${tail}\n\n(Reply now as ${agent.name}.)`

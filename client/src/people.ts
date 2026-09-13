@@ -10,6 +10,7 @@ export interface Person {
 }
 
 export function personFor(team: Team, id: string): Person {
+  if (id === 'routine') return { id, label: 'ROUTINE', name: 'Routine', color: '#f59e0b', kind: 'agent' }
   if (id === 'user') {
     return { id, label: team.owner.name, name: team.owner.name, color: '#8e8e93', kind: 'owner' }
   }

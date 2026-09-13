@@ -53,6 +53,72 @@ export interface Agent {
   autoApproveTools: boolean
   /** Muted employees only speak in a group when mentioned. */
   muted: boolean
+  /**
+   * auto: listed tools run without asking (default).
+   * ask-dangerous: Bash, Write and Edit stop for your approval in the chat.
+   * ask-all: every tool call stops for approval.
+   */
+  approvals: ApprovalPolicy
+}
+
+export type ApprovalPolicy = 'auto' | 'ask-dangerous' | 'ask-all'
+
+/** A personal auto-review rule. "require" wins over "allow" when both match. */
+export interface AutoReviewRule {
+  id: string
+  action: 'allow' | 'require'
+  /** Tool name (Read, Bash, Write, mcp__github__create_issue…) or * for any. */
+  tool: string
+  /** Optional substring that must appear in the tool input (e.g. "rm -rf", "production"). */
+  match?: string
+}
+
+export interface Skill {
+  name: string
+  description: string
+  /** Instructions inserted into the message when the skill is invoked with /name. */
+  body: string
+}
+
+export interface Attachment {
+  name: string
+  /** Absolute path on this machine (under data/uploads). */
+  path: string
+  mime: string
+  size: number
+}
+
+export interface RoutineRun {
+  at: number
+  status: 'ok' | 'error' | 'skipped'
+  durationMs: number
+  messageId?: string
+  error?: string
+}
+
+export interface Routine {
+  id: string
+  name: string
+  agentId: string
+  conversationId: string
+  /** 5-field cron in the server's local time zone, or empty for trigger-only routines. */
+  cron: string
+  instruction: string
+  enabled: boolean
+  createdAt: number
+  lastRunAt?: number
+  nextRunAt?: number
+  runs: RoutineRun[]
+}
+
+export interface ApprovalRequest {
+  id: string
+  conversationId: string
+  agentId: string
+  tool: string
+  summary: string
+  input: Record<string, unknown>
+  createdAt: number
 }
 
 export interface Owner {
@@ -77,6 +143,7 @@ export interface TeamSettings {
   language: ReplyLanguage
   /** Desktop notifications when an employee finishes a reply. */
   notifications: boolean
+  autoReview: AutoReviewRule[]
 }
 
 export interface Team {
@@ -86,6 +153,7 @@ export interface Team {
   agents: Agent[]
   providers: Record<string, ProviderDef>
   mcpServers: Record<string, McpServerDef>
+  skills: Record<string, Skill>
   settings: TeamSettings
 }
 
@@ -112,6 +180,8 @@ export interface Message {
   /** Short tool-activity lines shown under a streaming bubble (e.g. "Read server/index.ts"). */
   activity?: string[]
   usage?: MessageUsage
+  attachments?: Attachment[]
+  replyTo?: { messageId: string; authorId: string; excerpt: string }
 }
 
 export type ConversationKind = 'group' | 'dm'
@@ -127,6 +197,7 @@ export interface Conversation {
   /** Usage from turns that produced no visible message (the employee chose to stay silent). */
   silent?: { agentId: string; usage: MessageUsage; at: number }[]
   pinned?: boolean
+  hidden?: boolean
   createdAt?: number
 }
 
@@ -180,6 +251,8 @@ export interface AppState {
   busy: string[]
   usage: UsageSummary
   account: AccountStatus
+  routines: Routine[]
+  approvals: ApprovalRequest[]
 }
 
 export type ServerEvent =
@@ -193,3 +266,6 @@ export type ServerEvent =
   | { type: 'usage'; usage: UsageSummary }
   | { type: 'account'; account: AccountStatus }
   | { type: 'team'; team: Team; conversations: Conversation[] }
+  | { type: 'approval:request'; request: ApprovalRequest }
+  | { type: 'approval:resolved'; id: string; allowed: boolean }
+  | { type: 'routines'; routines: Routine[] }
