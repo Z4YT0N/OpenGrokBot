@@ -5,3 +5,6 @@ team.json
 .env
 *.log
 playground/
+demo-team.json
+demo-data/
+demo-workspace/

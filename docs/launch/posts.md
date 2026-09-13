@@ -45,7 +45,7 @@ Body (all three):
 >
 > github.com/Z4YT0N/OpenGrokBot
 >
-> [attach docs/screenshots/group-chat.png]
+> [attach docs/demo.mp4 (15 s video) or docs/demo.gif]
 
 Arabic version:
 > بديل Grok Bot مفتوح المصدر: شركة كاملة من موظفين AI بيتناقشوا مع بعض في جروب شات، بيشتغل باشتراك Claude أو ChatGPT أو Gemini اللي عندك أصلًا أو أي API، وبيرد بالعربي المصري.
@@ -67,7 +67,7 @@ Outline: what Grok Bot got right → why I couldn't keep using it → the archit
 
 ## Day 3
 - Reply to every comment; commit fixes people report the same day (activity boosts GitHub ranking).
-- Add a short GIF of a round to the top of the README.
+- The README opens with docs/demo.gif; docs/demo.mp4 is the same clip for X/LinkedIn (video posts travel further than images).
 - Cross-post the article to LinkedIn with the GIF.
 
 ## SEO notes (already done in the repo)

@@ -4,16 +4,22 @@
 
 No Cursor Pro. No SuperGrok. No trial that ends. No "Upgrade to Pro" wall. MIT licensed.
 
-![OpenGrokBot group chat: AI employees replying to each other in a Grok Bot style UI](docs/screenshots/group-chat.png)
+![OpenGrokBot demo: a strategy question is routed to the manager, backend and sales; a build request goes to one developer who ships a hero page with preview cards; an approval card stops a shell command](docs/demo.gif)
 
 ```
-You:    يا جماعة، عايز نعمل landing page جديدة لخدمة الـ ERP. @LAYLA و @NOUR ابدأوا
-LAYLA:  تمام يا @Mahmoud، هبدأ بس محتاجة أعرف كام حاجة الأول…
-NOUR:   متفقة مع @LAYLA في الأسئلة… بس عندي كام نقطة من ناحية الديزاين
-KARIM:  بصراحة يا @LAYLA، إحنا لسه ماقفلناش deal ERP مع مصنع سعودي…
-OMAR:   › Bash rg --files -g '*.ts'   › Read system/DEPLOY.md
-        الـ outage بتاع النهارده…
+You:    We got our first enterprise lead: a 200-person fintech wants SSO and a 99.9% SLA
+        before signing a $40k/year deal. Do we say yes?
+KHALED: Yes, with conditions: 99.5% with credits, SSO in 60 days. @ADAM can you scope SSO by Wednesday?
+ADAM:   > Bash list workspace   > Write backend/sso-scope.md
+        Written. About 13 working days with a hosted SSO service; hand-built SAML is where the holes are.
+KARIM:  I'll ask the client which identity provider they use and whether 99.5% + a step-up clause works.
+
+You:    Build me a dark landing-page hero for "Lumen Notes" as a single HTML file, then screenshot it.
+OMAR:   > Write frontend/lumen-notes-hero.html   > Bash screenshot desktop + mobile
+        Done: lumen-notes-hero.html  [preview cards appear in the chat]
 ```
+
+![Group chat with smart routing: one question, the three relevant employees, one file written](docs/screenshots/group-chat.png)
 
 ## Grok Bot vs OpenGrokBot
 
@@ -53,6 +59,10 @@ OMAR:   › Bash rg --files -g '*.ts'   › Read system/DEPLOY.md
 - **Skills.** Save a way of doing a task and invoke it with `/name` in the composer. Claude employees can also use your `~/.claude/skills`.
 - **Grok Bot conveniences.** Reply to a message, @everyone, unread badges, "needs attention" dot, hide chats, mark unread, Ctrl+K search across all messages, voice dictation, desktop notifications, export/import employees as JSON, pins, export to Markdown.
 - **Desktop, browser, or phone.** Electron window, a browser tab, or install it as a PWA on your phone when the server runs with `HOST=0.0.0.0 OPENGROKBOT_TOKEN=…` (on a VPS, or your PC over Tailscale).
+
+| Build request, then preview cards | Approval card | Routines |
+|---|---|---|
+| ![Build with previews](docs/screenshots/build-preview.png) | ![Approval](docs/screenshots/approval.png) | ![Routines](docs/screenshots/routines.png) |
 
 | Providers | Usage | Marketplace |
 |---|---|---|
@@ -116,6 +126,8 @@ Yes. Replies mirror your language (Egyptian Arabic when you write Arabic, techni
 
 ## بديل Grok Bot مفتوح المصدر
 
+![الفريق بيتناقش بالعربي المصري](docs/screenshots/group-chat-arabic.png)
+
 OpenGrokBot هو بديل مجاني ومفتوح المصدر لـ Grok Bot (بتاع xAI وCursor): شركة كاملة من الموظفين الذكاء الاصطناعي في جروب شات واحد، كل موظف له شخصية ودور وأدوات حقيقية، وبيتناقشوا مع بعض ومعاك. بيشتغل على اشتراك Claude أو ChatGPT (Codex) أو Gemini اللي عندك أصلًا، أو أي API زي Kimi أو OpenRouter أو Ollama محلي. بيرد بالعربي المصري لما تكتب عربي، والواجهة بتدعم RTL. مفيش Cursor Pro ولا SuperGrok ولا trial بينتهي.
 
 ## Settings
@@ -148,6 +160,14 @@ Everything the UI edits lives here. Safe to edit by hand; restart afterwards.
 | `settings` | `groupMode` (`smart`/`everyone`/`mentions-only`), `language`, `notifications`, `autoReview[]`, `maxMessagesPerRound`, `maxTurnsPerAgentPerRound`, `maxTurnsPerReply`. |
 
 Conversations are JSON files under `data/conversations/`; routines in `data/routines.json`; memory in `data/memory/<employee>.md`; uploads in `data/uploads/`.
+
+## Run a second, separate office (demos, tests)
+
+```bash
+PORT=4399 OPENGROKBOT_TEAM=demo-team.json OPENGROKBOT_DATA=demo-data npm start
+```
+
+Different team file, different data folder, same install. The screenshots above were taken in one.
 
 ## Use it from your phone
 

@@ -30,9 +30,10 @@ if (HOST !== '127.0.0.1' && HOST !== 'localhost' && !TOKEN) {
   process.exit(1)
 }
 
-const teamFile = path.join(root, 'team.json')
+/** OPENGROKBOT_TEAM / OPENGROKBOT_DATA let you run a second, separate office (demos, tests) from the same install. */
+const teamFile = process.env.OPENGROKBOT_TEAM ? path.resolve(process.env.OPENGROKBOT_TEAM) : path.join(root, 'team.json')
 if (!existsSync(teamFile)) copyFileSync(path.join(root, 'team.example.json'), teamFile)
-const dataDir = path.join(root, 'data')
+const dataDir = process.env.OPENGROKBOT_DATA ? path.resolve(process.env.OPENGROKBOT_DATA) : path.join(root, 'data')
 const uploadsDir = path.join(dataDir, 'uploads')
 mkdirSync(uploadsDir, { recursive: true })
 let team = loadTeam(teamFile)
@@ -102,8 +103,10 @@ function teamError(res: express.Response, err: unknown): void {
 /** Files employees may show you: anything under the workspace, an employee's folder, or uploads. */
 function allowedFile(p: string): boolean {
   if (!path.isAbsolute(p) || !existsSync(p)) return false
-  const abs = path.resolve(p)
-  const roots = [team.workspace, uploadsDir, ...team.agents.map((a) => a.cwd).filter((c): c is string => typeof c === 'string')].map((r) => path.resolve(r))
+  // Windows paths compare case-insensitively (E: vs e:).
+  const norm = (s: string): string => (process.platform === 'win32' ? path.resolve(s).toLowerCase() : path.resolve(s))
+  const abs = norm(p)
+  const roots = [team.workspace, uploadsDir, ...team.agents.map((a) => a.cwd).filter((c): c is string => typeof c === 'string')].map(norm)
   return roots.some((r) => abs === r || abs.startsWith(r + path.sep))
 }
 
