@@ -1,5 +1,5 @@
 {
-  "name": "opengrok",
+  "name": "opengrokbot",
   "version": "0.3.0",
   "private": true,
   "type": "module",
@@ -36,7 +36,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Z4YT0N/openGrok"
+    "url": "https://github.com/Z4YT0N/OpenGrokBotBot"
   },
-  "homepage": "https://github.com/Z4YT0N/openGrok"
+  "homepage": "https://github.com/Z4YT0N/OpenGrokBotBot"
 }

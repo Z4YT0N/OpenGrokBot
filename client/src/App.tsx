@@ -97,7 +97,7 @@ export function App() {
   if (!state.team || !conversation) {
     return (
       <div className="boot">
-        {error ? <p className="boot-error">Could not reach the OpenGrok server: {error}</p> : <p>Opening the office…</p>}
+        {error ? <p className="boot-error">Could not reach the OpenGrokBot server: {error}</p> : <p>Opening the office…</p>}
       </div>
     )
   }

@@ -1,4 +1,4 @@
-# OpenGrok
+# OpenGrokBot
 
 **Your own AI company in a group chat.** Employees with personas, roles and real tools who reply to you *and to each other*, running on the subscriptions you already pay for: Claude (Claude Code login), ChatGPT (Codex CLI login), Google (Gemini CLI login), or any OpenAI-compatible API (Kimi, OpenRouter, DeepSeek, Groq, xAI Grok, Ollama…).
 
@@ -41,8 +41,8 @@ Requirements: Node 20+ and at least one of these signed in on your machine:
 | Any API | An API key you paste in Settings → Providers | Nothing to install |
 
 ```bash
-git clone https://github.com/Z4YT0N/openGrok
-cd openGrok
+git clone https://github.com/Z4YT0N/OpenGrokBot
+cd OpenGrokBot
 npm install
 npm run build
 npm run desktop        # desktop window (Electron)
@@ -109,7 +109,7 @@ team.example.json  The starter company
 
 ## Name
 
-Yes, there is an older, unrelated [OpenGrok](https://oracle.github.io/opengrok/) code-search engine by Oracle. This project is "open Grok Bot": the open, provider-agnostic version of the Grok Bot idea. If that ever gets confusing we will rename.
+OpenGrokBot = the open version of the Grok Bot idea: your team of AI employees, on whatever subscription or API you already have. Not affiliated with xAI, Cursor, or Oracle's unrelated OpenGrok code-search engine.
 
 ## License
 

@@ -336,5 +336,5 @@ if (existsSync(clientDir)) {
 }
 
 app.listen(PORT, '127.0.0.1', () => {
-  console.log(`[opengrok] ${team.company}: ${team.agents.map((a) => a.name).join(', ')} online at http://127.0.0.1:${PORT}`)
+  console.log(`[opengrokbot] ${team.company}: ${team.agents.map((a) => a.name).join(', ')} online at http://127.0.0.1:${PORT}`)
 })

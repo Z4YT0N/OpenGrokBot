@@ -249,7 +249,7 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
               </label>
             ))}
           </div>
-          {kind === 'openai' && <p className="hint">API employees run these tools locally through OpenGrok (file read/search/edit, shell, web fetch).</p>}
+          {kind === 'openai' && <p className="hint">API employees run these tools locally through OpenGrokBot (file read/search/edit, shell, web fetch).</p>}
           {(kind === 'codex' || kind === 'gemini') && <p className="hint">Edit/Write/Bash switch the CLI sandbox to workspace-write; otherwise it runs read-only.</p>}
           <label className="field">
             <span>Permissions</span>

@@ -41,7 +41,7 @@ async function createWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#111111',
-    title: 'OpenGrok',
+    title: 'OpenGrokBot',
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
     titleBarOverlay: { color: '#141414', symbolColor: '#8f8f8f', height: 40 },

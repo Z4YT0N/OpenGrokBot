@@ -55,7 +55,7 @@ export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> 
     try {
       res = await fetch(`${provider.baseUrl}/chat/completions`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${provider.apiKey ?? 'none'}`, 'HTTP-Referer': 'https://github.com/Z4YT0N/openGrok', 'X-Title': 'OpenGrok' },
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${provider.apiKey ?? 'none'}`, 'HTTP-Referer': 'https://github.com/Z4YT0N/OpenGrokBot', 'X-Title': 'OpenGrokBot' },
         body: JSON.stringify(body),
         signal,
       })
