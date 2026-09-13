@@ -8,6 +8,7 @@ import { Account } from './account.js'
 import { Approvals } from './approvals.js'
 import { CRON_PRESETS, nextRun } from './cron.js'
 import { emit, subscribe } from './events.js'
+import { mimeOf } from './files.js'
 import { Memory } from './memory.js'
 import { Orchestrator } from './orchestrator.js'
 import { providerStatuses } from './providers/index.js'
@@ -42,7 +43,7 @@ store.seed(team)
 const account = new Account(path.join(dataDir, 'account.json'))
 const approvals = new Approvals()
 const memory = new Memory(dataDir)
-const orchestrator = new Orchestrator(() => team, store, account, approvals, memory)
+const orchestrator = new Orchestrator(() => team, store, account, approvals, memory, (p) => allowedFile(p))
 const routines = new Routines(dataDir, (r) => orchestrator.runRoutine(r))
 routines.start()
 
@@ -235,7 +236,8 @@ app.put('/api/uploads/:conversationId/:name', express.raw({ type: () => true, li
     return
   }
   writeFileSync(file, body)
-  const attachment: Attachment = { name: safe, path: file, mime: String(req.headers['content-type'] ?? 'application/octet-stream'), size: body.length }
+  const headerMime = String(req.headers['content-type'] ?? '')
+  const attachment: Attachment = { name: safe, path: file, mime: headerMime && headerMime !== 'application/octet-stream' ? headerMime : mimeOf(file), size: body.length }
   res.json({ attachment })
 })
 
@@ -247,6 +249,8 @@ app.get('/api/file', (req, res) => {
     return
   }
   res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('Content-Type', mimeOf(p) + (mimeOf(p).startsWith('text/') || mimeOf(p) === 'application/json' ? '; charset=utf-8' : ''))
+  if (req.query.download === '1') res.setHeader('Content-Disposition', `attachment; filename="${path.basename(p)}"`)
   res.sendFile(path.resolve(p))
 })
 

@@ -3,6 +3,7 @@ import type { Account } from './account.js'
 import { providerKeepsSession, runAgentTurn } from './agent.js'
 import { reviewByRules, type Approvals } from './approvals.js'
 import { emit } from './events.js'
+import { collectAttachments } from './files.js'
 import type { Memory } from './memory.js'
 import { findMentions } from './mentions.js'
 import { routeSpeakers, type RouteMode } from './router.js'
@@ -64,6 +65,8 @@ export class Orchestrator {
     private readonly account: Account,
     private readonly approvals: Approvals,
     private readonly memory: Memory,
+    /** Whether a file path may be shown in the chat (inside the workspace, an employee folder, or uploads). */
+    private readonly allowedFile: (p: string) => boolean,
   ) {}
 
   isBusy(conversationId: string): boolean {
@@ -358,7 +361,8 @@ export class Orchestrator {
     }
 
     start()
-    const done = this.store.updateMessage(conversationId, message.id, { text: result.text, status: 'done', ...usagePatch }) ?? { ...message, text: result.text, status: 'done' as const }
+    const attachments = collectAttachments(result.text, message.activity ?? [], this.allowedFile)
+    const done = this.store.updateMessage(conversationId, message.id, { text: result.text, status: 'done', ...usagePatch, ...(attachments.length ? { attachments } : {}) }) ?? { ...message, text: result.text, status: 'done' as const }
     emit({ type: 'message:done', message: done })
     this.emitUsage()
     return result.text
