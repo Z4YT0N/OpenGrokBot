@@ -393,3 +393,139 @@
 label.btn input {
   display: none;
 }
+
+
+/* ---------- file cards (any type) ---------- */
+
+.file-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  max-width: 100%;
+}
+
+.is-mine .file-cards {
+  justify-content: flex-end;
+}
+
+.file-card {
+  width: 340px;
+  max-width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: width 0.2s;
+}
+
+.file-card.is-expanded {
+  width: 760px;
+}
+
+.file-card.is-office,
+.file-card.is-other,
+.file-card.is-audio {
+  width: auto;
+  min-width: 260px;
+}
+
+.file-body {
+  background: #0c0c0c;
+  cursor: zoom-in;
+}
+
+.file-card.is-expanded .file-body {
+  cursor: zoom-out;
+}
+
+.file-card.is-image .file-body,
+.file-card.is-html .file-body,
+.file-card.is-pdf .file-body,
+.file-card.is-video .file-body {
+  aspect-ratio: 16 / 10;
+}
+
+.file-card.is-expanded.is-pdf .file-body,
+.file-card.is-expanded.is-html .file-body {
+  aspect-ratio: 16 / 12;
+}
+
+.file-body img,
+.file-body iframe,
+.file-body video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: contain;
+  background: #0c0c0c;
+}
+
+.file-body iframe {
+  background: #fff;
+}
+
+.file-body audio {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.file-text {
+  padding: 10px 12px;
+  max-height: 200px;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.file-card.is-expanded .file-text {
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.file-text pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.file-text.is-md {
+  font-size: 14px;
+}
+
+.file-text.is-md p {
+  margin: 0 0 6px;
+}
+
+.file-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+}
+
+.file-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.file-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: ltr;
+}
+
+.file-foot .icon-button {
+  width: 30px;
+  height: 30px;
+}

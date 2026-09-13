@@ -5,7 +5,7 @@ import { conversationAvatars, conversationTitle, personFor, type Person } from '
 import { ApprovalCard } from './Approval'
 import { Avatar, AvatarCluster } from './Avatar'
 import type { ReplyTarget } from './Composer'
-import { AttachmentList, PreviewCard, producedFiles } from './Preview'
+import { AttachmentList, attachmentFromPath, producedFiles } from './Preview'
 import { RichText } from './RichText'
 
 interface ChatViewProps {
@@ -183,7 +183,8 @@ function MessageGroup({ team, group, onReply }: { team: Team; group: Group; onRe
       )}
       {group.messages.map((m, i) => {
         const last = i === group.messages.length - 1
-        const files = !mine && m.status === 'done' ? producedFiles(m.text) : []
+        // Employees' shared files come as attachments; older messages fall back to path detection.
+        const shared = m.attachments && m.attachments.length > 0 ? m.attachments : !mine && m.status === 'done' ? producedFiles(m.text).map(attachmentFromPath) : []
         return (
           <div key={m.id} id={`m-${m.id}`} className="message-row">
             {!mine && <span className="message-avatar">{last && (isRoutine ? <span className="routine-avatar">⏰</span> : <Avatar person={person} size={28} />)}</span>}
@@ -205,15 +206,8 @@ function MessageGroup({ team, group, onReply }: { team: Team; group: Group; onRe
                   </div>
                 )}
                 {m.text.length > 0 ? <RichText text={m.text} team={team} /> : m.status === 'streaming' ? <span className="working">working…</span> : null}
-                {m.attachments && m.attachments.length > 0 && <AttachmentList items={m.attachments} />}
               </div>
-              {files.length > 0 && (
-                <div className="previews">
-                  {files.map((f) => (
-                    <PreviewCard key={f} path={f} />
-                  ))}
-                </div>
-              )}
+              {shared.length > 0 && <AttachmentList items={shared} team={team} />}
               <div className="message-meta">
                 {m.usage && (
                   <span>

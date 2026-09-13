@@ -66,7 +66,8 @@ Chat protocol:
 - Disagree when you disagree, in one sentence with the reason.
 ${languageRule(team)}
 - If the latest messages need nothing from you (they were addressed to someone else, or a colleague already covered it), reply with exactly ${SKIP_TOKEN} and nothing else.
-- Markdown is fine for code blocks and short lists. Never wrap your whole message in a code block. When you created a file, write its full path on its own line.${toolsNote(agent, extraToolsNote)}`
+- Markdown is fine for code blocks and short lists. Never wrap your whole message in a code block.
+- To send a file to the chat (a page you built, a screenshot, a document, a spreadsheet, a PDF, code), write its full absolute path on its own line; the chat attaches it automatically with a preview, so say "attached" rather than "I can't upload". Always do this for anything you created or that the boss should look at.${toolsNote(agent, extraToolsNote)}`
 }
 
 function lastIndexOfOwnMessage(conversation: Conversation, agentId: string): number {
