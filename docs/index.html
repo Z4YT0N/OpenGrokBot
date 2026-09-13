@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenGrokBot — Open-source Grok Bot alternative (Claude, ChatGPT, Gemini, any API)</title>
+<meta name="description" content="OpenGrokBot is a free, open-source Grok Bot alternative: a company of AI employees that talk to you and to each other in a group chat, running locally on your Claude, ChatGPT (Codex) or Gemini subscription, or any API like Kimi, OpenRouter and Ollama.">
+<meta name="keywords" content="Grok Bot alternative, open source Grok Bot, Grok Bot free, Grok Bot Claude, Grok Bot ChatGPT, AI employees, multi-agent chat, Claude Code, Codex CLI, Gemini CLI, MCP, بديل جروك بوت">
+<link rel="canonical" href="https://z4yt0n.github.io/OpenGrokBot/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="OpenGrokBot — the open-source Grok Bot alternative">
+<meta property="og:description" content="Your own AI company in a group chat. Employees with personas that talk to you and to each other, on the Claude / ChatGPT / Gemini plan you already have, or any API. Free, local, MIT.">
+<meta property="og:url" content="https://z4yt0n.github.io/OpenGrokBot/">
+<meta property="og:image" content="https://z4yt0n.github.io/OpenGrokBot/social.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="OpenGrokBot — the open-source Grok Bot alternative">
+<meta name="twitter:description" content="AI employees that debate in a group chat, on your Claude / ChatGPT / Gemini subscription or any API. Free, local, MIT.">
+<meta name="twitter:image" content="https://z4yt0n.github.io/OpenGrokBot/social.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 17c0-8 6-13 12-13s12 5 12 12c0 7-5 11-12 11S4 24 4 17z' fill='%23ff6a1a'/%3E%3Ccircle cx='12' cy='16' r='2' fill='%23111'/%3E%3Ccircle cx='20' cy='16' r='2' fill='%23111'/%3E%3C/svg%3E">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "OpenGrokBot",
+  "alternateName": "Open Grok Bot",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Windows, macOS, Linux",
+  "description": "Open-source Grok Bot alternative: a company of AI employees with personas that talk to you and to each other in a group chat, running locally on your Claude, ChatGPT (Codex) or Gemini subscription, or any OpenAI-compatible API.",
+  "url": "https://z4yt0n.github.io/OpenGrokBot/",
+  "downloadUrl": "https://github.com/Z4YT0N/OpenGrokBot",
+  "codeRepository": "https://github.com/Z4YT0N/OpenGrokBot",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "Mahmoud Amr", "url": "https://github.com/Z4YT0N" },
+  "keywords": "Grok Bot alternative, open source, AI employees, multi-agent chat, Claude Code, Codex, Gemini, MCP"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Is there a free alternative to Grok Bot?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. OpenGrokBot is MIT licensed and runs locally. The only cost is whatever AI plan you already have (Claude, ChatGPT, Gemini) or the API you point it at. A free local model through Ollama works too." } },
+    { "@type": "Question", "name": "Can I use Grok Bot with Claude, ChatGPT or Gemini?", "acceptedAnswer": { "@type": "Answer", "text": "Grok Bot itself can't; its models are picked by Cursor's cloud. OpenGrokBot was built for exactly that: each employee runs on Claude Code, Codex CLI, Gemini CLI or an API of your choice." } },
+    { "@type": "Question", "name": "Does OpenGrokBot work with a Claude subscription without an API key?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. It drives Claude Code through the official Agent SDK, which uses your existing claude login." } },
+    { "@type": "Question", "name": "Is OpenGrokBot affiliated with xAI, Cursor or Oracle's OpenGrok?", "acceptedAnswer": { "@type": "Answer", "text": "No. It is an independent open-source project." } }
+  ]
+}
+</script>
+<style>
+  :root { --bg:#0f0f0f; --panel:#161616; --card:#1e1e1e; --text:#f2f2f2; --muted:#9a9a9a; --accent:#ff6a1a; --blue:#2f7ef5; --border:rgba(255,255,255,.08) }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; -webkit-font-smoothing:antialiased }
+  a { color:var(--blue); text-decoration:none } a:hover { text-decoration:underline }
+  .wrap { max-width:1040px; margin:0 auto; padding:0 20px }
+  header { padding:26px 0 8px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:800; font-size:18px }
+  .brand svg { width:30px; height:30px }
+  nav a { margin-left:18px; color:var(--muted); font-weight:600 } nav a:hover { color:var(--text) }
+  .hero { padding:56px 0 30px; text-align:center }
+  .eyebrow { display:inline-block; background:rgba(255,106,26,.14); color:var(--accent); font-weight:700; font-size:13px; padding:5px 12px; border-radius:999px; letter-spacing:.02em }
+  h1 { font-size:clamp(34px,5.4vw,58px); line-height:1.08; margin:18px 0 14px; letter-spacing:-.02em }
+  .lead { color:var(--muted); font-size:clamp(17px,2vw,20px); max-width:760px; margin:0 auto 26px }
+  .cta { display:inline-flex; gap:12px; flex-wrap:wrap; justify-content:center }
+  .btn { display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border-radius:12px; font-weight:700; background:#fff; color:#111 }
+  .btn.ghost { background:var(--card); color:var(--text); border:1px solid var(--border) }
+  .btn:hover { text-decoration:none; filter:brightness(1.08) }
+  .shot { margin:34px auto 0; max-width:1000px; border-radius:16px; overflow:hidden; border:1px solid var(--border); box-shadow:0 40px 100px rgba(0,0,0,.6) }
+  .shot img { display:block; width:100%; height:auto }
+  section { padding:54px 0 } h2 { font-size:30px; margin:0 0 8px; letter-spacing:-.01em } .sub { color:var(--muted); margin:0 0 26px }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px }
+  .card h3 { margin:0 0 6px; font-size:17px } .card p { margin:0; color:var(--muted); font-size:15px }
+  .card .ic { font-size:24px; margin-bottom:10px }
+  table { width:100%; border-collapse:collapse; background:var(--card); border-radius:16px; overflow:hidden; font-size:15px }
+  th, td { padding:12px 14px; text-align:left; border-bottom:1px solid var(--border); vertical-align:top }
+  th { color:var(--muted); font-weight:600; font-size:13px } tr:last-child td { border-bottom:0 }
+  td:first-child { font-weight:700; white-space:nowrap }
+  .ok { color:#22c55e; font-weight:700 } .no { color:#ff5c5c; font-weight:700 }
+  pre { background:#0a0a0a; border:1px solid var(--border); border-radius:14px; padding:16px 18px; overflow-x:auto; font:13.5px/1.6 ui-monospace,Consolas,Menlo,monospace; color:#e6e6e6 }
+  .chat { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px 20px; font-size:15px }
+  .chat .m { display:flex; gap:10px; margin:8px 0 } .chat .n { font-weight:800; min-width:64px } .chat .t { color:#e8e8e8 }
+  .ar { direction:rtl; text-align:right }
+  details { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 18px; margin:8px 0 }
+  summary { cursor:pointer; font-weight:700 } details p { color:var(--muted); margin:8px 0 0 }
+  footer { padding:40px 0 60px; color:var(--muted); font-size:14px; border-top:1px solid var(--border); margin-top:20px }
+  @media (max-width:700px) { th,td { padding:10px } td:first-child { white-space:normal } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><svg viewBox="0 0 40 40"><path d="M5 21C4 12 11 5 20 5s16 6 15 15c-1 8-6 15-15 15S6 30 5 21z" fill="#ff6a1a"/><ellipse cx="14.5" cy="19.5" rx="2.3" ry="2.6" fill="#141414"/><ellipse cx="25.5" cy="19.5" rx="2.3" ry="2.6" fill="#141414"/><path d="M15.5 27c2.5 2.2 6.5 2.2 9 0" stroke="#141414" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg> OpenGrokBot</div>
+    <nav><a href="#compare">vs Grok Bot</a><a href="#features">Features</a><a href="#install">Install</a><a href="#faq">FAQ</a><a href="https://github.com/Z4YT0N/OpenGrokBot">GitHub</a></nav>
+  </header>
+
+  <div class="hero">
+    <span class="eyebrow">Open-source Grok Bot alternative</span>
+    <h1>Your own AI company,<br>in a group chat.</h1>
+    <p class="lead">Employees with personas, roles and real tools who reply to you <em>and to each other</em>. Runs locally on the Claude, ChatGPT (Codex) or Gemini plan you already pay for, or any API. No Cursor Pro, no SuperGrok, no trial that ends.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/Z4YT0N/OpenGrokBot">★ Star on GitHub</a>
+      <a class="btn ghost" href="#install">Install in 2 minutes</a>
+    </div>
+    <div class="shot"><img src="screenshots/group-chat.png" alt="OpenGrokBot screenshot: a group chat where AI employees KHALED, OMAR, LAYLA, NOUR and KARIM reply to each other in Arabic, with tool activity shown under a message" width="1600" height="1000" loading="eager"></div>
+  </div>
+
+  <section id="compare">
+    <h2>Grok Bot vs OpenGrokBot</h2>
+    <p class="sub">Same idea. Different ownership.</p>
+    <table>
+      <tr><th></th><th>Grok Bot (xAI / Cursor)</th><th>OpenGrokBot</th></tr>
+      <tr><td>Price</td><td>Cursor Pro or SuperGrok; the free trial ends</td><td><span class="ok">Free.</span> Uses the Claude / ChatGPT / Gemini plan you have, or any API key</td></tr>
+      <tr><td>Models</td><td>Grok only, chosen by Cursor's cloud</td><td>Claude Opus/Sonnet/Haiku, GPT/Codex, Gemini, Kimi, DeepSeek, Grok via xAI API, local Ollama, per employee</td></tr>
+      <tr><td>Where it runs</td><td>Cursor's cloud computer</td><td>Your machine; nothing leaves it except calls to the provider you chose</td></tr>
+      <tr><td>Employees talk to each other</td><td><span class="ok">✓</span></td><td><span class="ok">✓</span> Mentions, rounds, muting, "mentions only" mode</td></tr>
+      <tr><td>Real tools</td><td><span class="ok">✓</span></td><td><span class="ok">✓</span> Files, shell, web, subagents, MCP servers</td></tr>
+      <tr><td>Edit employees</td><td>Name, label, description</td><td>Provider, model, effort, personality, tools, permissions, folder, MCP, mute, duplicate</td></tr>
+      <tr><td>Usage &amp; limits</td><td>Plan usage only</td><td>Tokens and cost per message / employee / chat / model, Claude limit windows</td></tr>
+      <tr><td>Arabic / RTL</td><td>Partial</td><td><span class="ok">✓</span> Native RTL, Egyptian Arabic replies</td></tr>
+      <tr><td>Source</td><td><span class="no">Closed</span></td><td><span class="ok">MIT</span>, TypeScript</td></tr>
+    </table>
+  </section>
+
+  <section id="features">
+    <h2>What you get</h2>
+    <p class="sub">Ten employees ship in the box. Add your own in two clicks.</p>
+    <div class="grid">
+      <div class="card"><div class="ic">🗣️</div><h3>They talk to each other</h3><p>Mention someone and only they answer. Post something general and everyone weighs in, seeing each other's replies. Colleagues pull each other in with @mentions. Rounds are capped, so nobody loops.</p></div>
+      <div class="card"><div class="ic">🛠️</div><h3>They do real work</h3><p>Read repos, grep, edit files, run commands, search the web, in your workspace, with permissions per employee. Tool activity streams live under the message.</p></div>
+      <div class="card"><div class="ic">🔌</div><h3>Bring your own subscription</h3><p>Claude Code, Codex CLI and Gemini CLI use their own logins. Or paste an API key: Kimi, OpenRouter, DeepSeek, Groq, xAI, Mistral, OpenAI, Ollama.</p></div>
+      <div class="card"><div class="ic">🧩</div><h3>MCP marketplace</h3><p>GitHub, Playwright (a real browser), Postgres, Supabase, Slack, Notion, Context7, Vercel, Chrome DevTools… one click each, enabled per employee.</p></div>
+      <div class="card"><div class="ic">📊</div><h3>Usage &amp; limits</h3><p>Tokens and API-equivalent cost per message, employee, conversation and model. Your Claude limit windows with reset times.</p></div>
+      <div class="card"><div class="ic">🖥️</div><h3>Desktop or browser</h3><p>Electron window with the Grok Bot look: avatar shapes, colored role labels, mention pills, RTL. Or just open it in a tab.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>A real round</h2>
+    <p class="sub">The owner writes Arabic, so the team answers in Egyptian Arabic. Technical terms stay English.</p>
+    <div class="chat ar">
+      <div class="m"><span class="n" style="color:#8e8e93">أنت</span><span class="t">يا جماعة، عايز نعمل landing page جديدة لخدمة الـ ERP. @LAYLA و @NOUR ابدأوا</span></div>
+      <div class="m"><span class="n" style="color:#7c4dff">LAYLA</span><span class="t">تمام يا @Mahmoud، هبدأ بس محتاجة أعرف كام حاجة الأول عشان مانعملش صفحة حلوة ومحدش يتحرك بعدها…</span></div>
+      <div class="m"><span class="n" style="color:#22c55e">NOUR</span><span class="t">متفقة مع @LAYLA في الأسئلة، وهستنى الـ brief. بس عندي كام نقطة من ناحية الديزاين عشان نبدأ…</span></div>
+      <div class="m"><span class="n" style="color:#b5733c">KARIM</span><span class="t">بصراحة يا @LAYLA، إحنا لسه ماقفلناش deal ERP مع مصنع سعودي. فاللي جاي ده الاعتراضات اللي بسمعها…</span></div>
+      <div class="m"><span class="n" style="color:#ff6a1a">OMAR</span><span class="t">› Bash rg --files -g '*.ts' &nbsp; › Read system/DEPLOY.md … 19 ملف .ts في server، والـ DNS شغال.</span></div>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Install</h2>
+    <p class="sub">Node 20+ and at least one signed-in CLI: <code>claude</code>, <code>codex login</code> or <code>gemini</code>. Or an API key.</p>
+<pre>git clone https://github.com/Z4YT0N/OpenGrokBot
+cd OpenGrokBot
+npm install
+npm run build
+npm run desktop      # desktop window
+# or: npm start      # http://127.0.0.1:4310</pre>
+  </section>
+
+  <section id="faq">
+    <h2>FAQ</h2>
+    <details open><summary>Is there a free alternative to Grok Bot?</summary><p>Yes, this one. OpenGrokBot is MIT licensed and runs locally. The only cost is whatever AI plan you already have (Claude, ChatGPT, Gemini) or the API you point it at. A free local model through Ollama works too.</p></details>
+    <details><summary>Can I use Grok Bot with Claude, ChatGPT or Gemini?</summary><p>Grok Bot itself can't; its models are picked by Cursor's cloud. OpenGrokBot was built for exactly that: each employee runs on Claude Code, Codex CLI, Gemini CLI or an API of your choice.</p></details>
+    <details><summary>Does it work with my Claude subscription without an API key?</summary><p>Yes. It drives Claude Code through the official Agent SDK, which uses your existing <code>claude</code> login. Any <code>ANTHROPIC_API_KEY</code> in your environment is ignored unless you add a key on purpose.</p></details>
+    <details><summary>Can I still use Grok itself?</summary><p>Yes, add xAI as an API provider and give an employee grok-4 or grok-code-fast-1.</p></details>
+    <details><summary>Is this affiliated with xAI, Cursor or Oracle's OpenGrok?</summary><p>No. Grok Bot is xAI/Cursor's product and Oracle's OpenGrok is an unrelated code-search engine. OpenGrokBot is an independent open-source project.</p></details>
+    <details><summary>هل فيه بديل مجاني لـ Grok Bot؟</summary><p class="ar">أيوه، OpenGrokBot. مفتوح المصدر وبيشتغل على جهازك باشتراك Claude أو ChatGPT أو Gemini اللي عندك، أو أي API. وبيرد بالعربي المصري.</p></details>
+  </section>
+
+  <footer>MIT © 2026 <a href="https://github.com/Z4YT0N">Mahmoud Amr</a> · FortuneCode · <a href="https://github.com/Z4YT0N/OpenGrokBot">github.com/Z4YT0N/OpenGrokBot</a></footer>
+</div>
+</body>
+</html>

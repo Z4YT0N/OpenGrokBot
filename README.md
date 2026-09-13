@@ -1,10 +1,10 @@
-# OpenGrokBot
+# OpenGrokBot — the open-source Grok Bot alternative
 
-**Your own AI company in a group chat.** Employees with personas, roles and real tools who reply to you *and to each other*, running on the subscriptions you already pay for: Claude (Claude Code login), ChatGPT (Codex CLI login), Google (Gemini CLI login), or any OpenAI-compatible API (Kimi, OpenRouter, DeepSeek, Groq, xAI Grok, Ollama…).
+**Looking for a Grok Bot alternative?** OpenGrokBot gives you the same thing people loved in xAI/Cursor's Grok Bot, a *company of AI employees debating in a group chat*, but open source, running on your own machine, on the subscriptions you already pay for: **Claude** (Claude Code login), **ChatGPT** (Codex CLI login), **Google Gemini** (Gemini CLI login, the same account Antigravity uses), or **any OpenAI-compatible API** (Kimi, OpenRouter, DeepSeek, Groq, xAI Grok, Ollama…).
 
-It is the part of xAI/Cursor's *Grok Bot* people actually loved, the "my team is arguing about my product" feeling, without the closed backend, the trial that ends, or the "upgrade to Pro" wall. Open source, local, yours.
+No Cursor Pro. No SuperGrok. No trial that ends. No "Upgrade to Pro" wall. MIT licensed.
 
-![Group chat](docs/screenshots/group-chat.png)
+![OpenGrokBot group chat: AI employees replying to each other in a Grok Bot style UI](docs/screenshots/group-chat.png)
 
 ```
 You:    يا جماعة، عايز نعمل landing page جديدة لخدمة الـ ERP. @LAYLA و @NOUR ابدأوا
@@ -15,15 +15,31 @@ OMAR:   › Bash rg --files -g '*.ts'   › Read system/DEPLOY.md
         الـ outage بتاع النهارده…
 ```
 
-## Why people like it
+## Grok Bot vs OpenGrokBot
 
-- **A team, not a chatbot.** A manager, a full-stack dev, DevOps, ops, backend, sales, QA, growth, design and product ship in the box. Each has a personality, a color, an avatar shape and a department badge. Add, duplicate, mute or delete anyone in two clicks.
+| | Grok Bot (xAI / Cursor) | OpenGrokBot |
+|---|---|---|
+| Price | Cursor Pro or SuperGrok subscription; free trial ends | Free. Uses the Claude / ChatGPT / Gemini plan you already have, or any API key |
+| Models | Grok only (Cursor's cloud picks) | Claude Opus/Sonnet/Haiku, GPT/Codex, Gemini, Kimi, DeepSeek, Grok via xAI API, local Ollama… per employee |
+| Where it runs | Cursor's cloud "computer" | Your machine. Nothing leaves it except calls to the provider you chose |
+| Employees talk to each other | ✅ | ✅ Mentions, rounds, muting, "mentions only" mode |
+| Real tools | ✅ | ✅ Read/edit files, run commands, web search, subagents, MCP servers |
+| Plugins / MCP | Marketplace | Marketplace of MCP servers (GitHub, Playwright, Postgres, Supabase, Slack, Notion, Context7, Vercel…) + custom |
+| Usage & limits | Plan usage only | Tokens and cost per message, per employee, per conversation, per model; Claude limit windows |
+| Edit employees | Name, label, description | Everything: provider, model, effort, personality, tools, permissions, working folder, MCP, mute, duplicate |
+| Group chats | ✅ | ✅ Any subset of the team, pin, rename, export to Markdown |
+| Arabic / RTL | Partial | Native RTL, replies in Egyptian Arabic when you write Arabic |
+| Source | Closed | MIT, TypeScript, ~5k lines you can read in an afternoon |
+
+## What you get
+
+- **A team, not a chatbot.** Manager, full-stack dev, DevOps, ops, backend, sales, QA, growth, design and product ship in the box. Each has a personality, a color, an avatar shape and a department badge. Add, duplicate, mute or delete anyone in two clicks.
 - **They talk to each other.** Mention someone (`@OMAR`) and only they answer. Post something general and everyone weighs in, in order, each seeing the earlier replies. When an employee mentions a colleague, the colleague answers. Rounds are capped so nobody loops forever, and an employee with nothing to add stays quiet.
-- **They do real work.** Employees run Claude Code / Codex / Gemini tools in your workspace: read repos, grep, edit files, run commands, search the web. You see the tool activity live under their message. Permissions and working folder are per employee.
-- **Bring your own subscription.** No API keys required. Claude Code, Codex CLI and Gemini CLI use their own logins. Every employee picks a provider and model in their profile, so your manager can be Opus, your dev can be Codex, and your intern can be a free local Ollama model.
-- **MCP marketplace.** GitHub, Playwright (a real browser), Filesystem, Postgres, Supabase, Slack, Notion, Context7, Vercel, Chrome DevTools… one click each, enabled per employee. Or point an employee at your whole `~/.claude` setup.
-- **Usage and limits.** Tokens and API-equivalent cost per message, per conversation, per employee, per model and in total. Your Claude subscription's limit windows (5-hour, weekly, Opus weekly) with reset times.
-- **Group chats, DMs, pins, export.** Extra group chats with any subset of the team, DMs with each employee, pin, rename, clear, export to Markdown, desktop notifications, Arabic RTL, Grok Bot-style dark UI.
+- **They do real work.** Employees use Claude Code / Codex / Gemini tools in your workspace: read repos, grep, edit files, run commands, search the web. Tool activity streams live under the message. Permissions and working folder are per employee.
+- **Bring your own subscription.** Claude Code, Codex CLI and Gemini CLI use their own logins. Every employee picks a provider and model, so your manager can be Opus, your dev can be Codex, and your intern can be a free local Ollama model.
+- **MCP marketplace.** One click each, enabled per employee, or point an employee at your whole `~/.claude` setup.
+- **Usage and limits.** Tokens and API-equivalent cost everywhere; your Claude subscription's limit windows with reset times.
+- **The rest.** Group chats, DMs, pins, export, notifications, desktop window (Electron) or browser.
 
 | Providers | Usage | Marketplace |
 |---|---|---|
@@ -63,9 +79,31 @@ First start copies `team.example.json` to `team.json`. Open Settings → General
 | Tools | Read/Edit/Bash/Glob/Grep/WebSearch/WebFetch/subagents + MCP | Codex's own tools; sandbox follows the employee's tools | Gemini's own tools; approval mode follows the employee's tools | Built-in local tools: read/list/search/edit/write files, run commands, fetch URLs |
 | Effort | ✅ | ✅ (`model_reasoning_effort`) | ignored | ignored |
 
-Prompts go to the CLIs over stdin, never as arguments, so Arabic and other non-ASCII text survive Windows shells.
+Prompts go to the CLIs over stdin, never as arguments, so Arabic and other non-ASCII text survive Windows shells. API keys live in `team.json` on your disk (git-ignored) and are never returned to the browser.
 
-Nothing is sent anywhere except to the provider you chose. API keys live in `team.json` on your disk (git-ignored) and are never returned to the browser.
+## FAQ
+
+**Is there a free alternative to Grok Bot?**
+Yes, this one. OpenGrokBot is MIT licensed and runs locally. The only cost is whatever AI plan you already have (Claude, ChatGPT, Gemini) or the API you point it at. A free local model through Ollama works too.
+
+**Can I use Grok Bot with Claude, ChatGPT or Gemini?**
+Grok Bot itself can't; its models are picked by Cursor's cloud. OpenGrokBot was built for exactly that: each employee runs on Claude Code, Codex CLI, Gemini CLI or an API of your choice.
+
+**Does it work with my Claude subscription without an API key?**
+Yes. It drives Claude Code through the official Agent SDK, which uses your existing `claude` login. Any `ANTHROPIC_API_KEY` in your environment is ignored unless you add a key on purpose.
+
+**Can I still use Grok itself?**
+Yes, add xAI as an API provider (`https://api.x.ai/v1`) and give an employee `grok-4` or `grok-code-fast-1`.
+
+**Is this affiliated with xAI, Cursor or Oracle's OpenGrok?**
+No. "Grok Bot" is xAI/Cursor's product; Oracle's OpenGrok is an unrelated code-search engine. OpenGrokBot is an independent open-source project.
+
+**Does it speak Arabic?**
+Yes. Replies mirror your language (Egyptian Arabic when you write Arabic, technical terms stay in English), the UI is RTL-aware, and you can force Arabic or English in Settings.
+
+## بديل Grok Bot مفتوح المصدر
+
+OpenGrokBot هو بديل مجاني ومفتوح المصدر لـ Grok Bot (بتاع xAI وCursor): شركة كاملة من الموظفين الذكاء الاصطناعي في جروب شات واحد، كل موظف له شخصية ودور وأدوات حقيقية، وبيتناقشوا مع بعض ومعاك. بيشتغل على اشتراك Claude أو ChatGPT (Codex) أو Gemini اللي عندك أصلًا، أو أي API زي Kimi أو OpenRouter أو Ollama محلي. بيرد بالعربي المصري لما تكتب عربي، والواجهة بتدعم RTL. مفيش Cursor Pro ولا SuperGrok ولا trial بينتهي.
 
 ## Settings
 
@@ -102,14 +140,15 @@ server/providers/  claude.ts (Agent SDK), codex.ts, gemini.ts, openai.ts (+ loca
 client/            Vite + React UI (chat, profile panel, settings, marketplace, providers)
 shared/            Types and catalogs shared by both
 desktop/           Electron shell + launcher
+docs/              Landing page (GitHub Pages) and screenshots
 team.example.json  The starter company
 ```
 
 `npm run dev` for hot reload (server :4310, client :5180). `npm test` for the unit tests.
 
-## Name
+## Contributing
 
-OpenGrokBot = the open version of the Grok Bot idea: your team of AI employees, on whatever subscription or API you already have. Not affiliated with xAI, Cursor, or Oracle's unrelated OpenGrok code-search engine.
+Issues and PRs welcome. Good first contributions: more marketplace MCP entries, more API presets, a light theme, WhatsApp/Telegram bridges, packaged installers.
 
 ## License
 
