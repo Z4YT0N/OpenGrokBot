@@ -82,7 +82,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '2mb' }))
 app.post('/api/auth/login', (req, res) => {
   if (!TOKEN || req.body?.token !== TOKEN) { res.status(401).json({ error: 'unauthorized' }); return }
-  const secure = req.secure || req.get('x-forwarded-proto') === 'https'
+  const secure = req.secure
   res.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(TOKEN)}; Path=/; HttpOnly; SameSite=Strict; ${secure ? 'Secure; ' : ''}Max-Age=86400`)
   res.json({ ok: true })
 })
