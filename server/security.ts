@@ -1,4 +1,4 @@
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { isIP } from 'node:net'
 import type { Request } from 'express'
@@ -6,7 +6,9 @@ import type { Request } from 'express'
 /** Reject symlinks traversing outside the approved trees. For nonexistent writes, check the real parent. */
 export function insideRoots(candidate: string, roots: string[], forWrite = false): boolean {
   try {
-    const actual = realpathSync(forWrite ? path.dirname(candidate) : candidate)
+    let target = forWrite ? path.dirname(candidate) : candidate
+    if (forWrite) while (!existsSync(target) && path.dirname(target) !== target) target = path.dirname(target)
+    const actual = realpathSync(target)
     const compare = (p: string): string => process.platform === 'win32' ? p.toLowerCase() : p
     return roots.some((root) => {
       const base = realpathSync(root)
