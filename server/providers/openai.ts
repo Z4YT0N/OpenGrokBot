@@ -1,7 +1,6 @@
 import { needsApproval } from '../approvals.js'
 import { buildSystemPrompt, buildTurnPrompt, stripSkip } from '../prompt.js'
 import { LOCAL_TOOLS, runLocalTool, summarizeLocalTool } from './localtools.js'
-import { safeFetchUrl } from '../security.js'
 import { emptyUsage, type RunTurnParams, type TurnResult } from './types.js'
 
 interface ChatMessage {
@@ -55,7 +54,8 @@ export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> 
 
     let res: Response
     try {
-      const endpoint = safeFetchUrl(`${provider.baseUrl}/chat/completions`)
+      const endpoint = new URL(`${provider.baseUrl}/chat/completions`)
+      if (!['http:', 'https:'].includes(endpoint.protocol) || endpoint.username || endpoint.password) throw new Error('Invalid model endpoint')
       res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${provider.apiKey ?? 'none'}`, 'HTTP-Referer': 'https://github.com/Z4YT0N/OpenGrokBot', 'X-Title': 'OpenGrokBot' },
@@ -162,7 +162,7 @@ export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> 
 /** Lists models from an OpenAI-compatible endpoint, for the provider status page. */
 export async function listOpenAiModels(baseUrl: string, apiKey: string | undefined): Promise<string[]> {
   const endpoint = new URL(`${baseUrl}/models`)
-  if (!['https:', 'http:'].includes(endpoint.protocol)) throw new Error('Unsupported endpoint protocol')
+  if (!['https:', 'http:'].includes(endpoint.protocol) || endpoint.username || endpoint.password) throw new Error('Unsupported endpoint protocol')
   const res = await fetch(endpoint, { redirect: 'error', headers: { authorization: `Bearer ${apiKey ?? 'none'}` }, signal: AbortSignal.timeout(15_000) })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = (await res.json()) as { data?: { id?: string }[] }
