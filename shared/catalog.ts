@@ -14,12 +14,14 @@ export const MODEL_SUGGESTIONS: Record<ProviderKind, string[]> = {
   codex: ['default', 'gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5'],
   gemini: ['default', 'gemini-3-pro-preview', 'gemini-3-flash-preview', 'gemini-2.5-pro', 'gemini-2.5-flash'],
   openai: [],
+  bedrock: [],
 }
 
 export const PROVIDER_KINDS: { id: ProviderKind; label: string; hint: string }[] = [
   { id: 'claude', label: 'Claude Code', hint: 'Anthropic. Uses your Claude subscription login, or an API key if you add one. Full tools + MCP.' },
   { id: 'codex', label: 'Codex CLI', hint: 'OpenAI. Uses your ChatGPT / Codex subscription login (`codex login`). Full coding tools.' },
   { id: 'gemini', label: 'Gemini CLI', hint: 'Google. Signs in with your Google account, the same one Antigravity uses. Full coding tools.' },
+  { id: 'bedrock', label: 'Amazon Bedrock', hint: 'AWS CLI v2 + standard AWS credentials or SSO. Uses Bedrock Converse (billed by AWS).' },
   { id: 'openai', label: 'API (OpenAI-compatible)', hint: 'Any chat API: Kimi, OpenRouter, DeepSeek, Groq, xAI Grok, Ollama… Chat plus built-in file/shell tools.' },
 ]
 
@@ -39,7 +41,8 @@ export const API_PRESETS: { id: string; label: string; baseUrl: string; models: 
   { id: 'groq', label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', models: ['llama-3.3-70b-versatile', 'moonshotai/kimi-k2-instruct'], keyHint: 'console.groq.com' },
   { id: 'openai', label: 'OpenAI API', baseUrl: 'https://api.openai.com/v1', models: ['gpt-5', 'gpt-5-mini', 'gpt-4.1'], keyHint: 'platform.openai.com' },
   { id: 'mistral', label: 'Mistral', baseUrl: 'https://api.mistral.ai/v1', models: ['mistral-large-latest', 'codestral-latest'], keyHint: 'console.mistral.ai' },
-  { id: 'ollama', label: 'Ollama (local)', baseUrl: 'http://127.0.0.1:11434/v1', models: ['qwen3:32b', 'llama3.3', 'deepseek-r1:32b'], keyHint: 'No key needed (type anything)' },
+  { id: 'ollama', label: 'Ollama (local)', baseUrl: 'http://127.0.0.1:11434/v1', models: [], keyHint: 'Local Ollama; no key required. Pull a model first.' },
+  { id: 'ollama-cloud', label: 'Ollama Cloud', baseUrl: 'https://ollama.com/v1', models: [], keyHint: 'Ollama account API key; verify model availability in your account.' },
 ]
 
 export const EFFORTS: { id: Effort; label: string }[] = [
@@ -51,14 +54,14 @@ export const EFFORTS: { id: Effort; label: string }[] = [
 ]
 
 export const TOOLS: { id: string; label: string; hint: string; kinds: ProviderKind[] }[] = [
-  { id: 'Read', label: 'Read', hint: 'Read files', kinds: ['claude', 'codex', 'gemini', 'openai'] },
+  { id: 'Read', label: 'Read', hint: 'Read files', kinds: ['claude', 'codex', 'gemini', 'openai', 'bedrock'] },
   { id: 'Glob', label: 'Glob', hint: 'Find files by pattern', kinds: ['claude', 'codex', 'gemini', 'openai'] },
   { id: 'Grep', label: 'Grep', hint: 'Search file contents', kinds: ['claude', 'codex', 'gemini', 'openai'] },
   { id: 'Edit', label: 'Edit', hint: 'Edit files', kinds: ['claude', 'codex', 'gemini', 'openai'] },
   { id: 'Write', label: 'Write', hint: 'Create files', kinds: ['claude', 'codex', 'gemini', 'openai'] },
   { id: 'Bash', label: 'Bash', hint: 'Run shell commands', kinds: ['claude', 'codex', 'gemini', 'openai'] },
   { id: 'WebSearch', label: 'Web search', hint: 'Search the web', kinds: ['claude', 'codex', 'gemini'] },
-  { id: 'WebFetch', label: 'Web fetch', hint: 'Read web pages', kinds: ['claude', 'openai'] },
+  { id: 'WebFetch', label: 'Web fetch', hint: 'Read web pages', kinds: ['claude', 'openai', 'bedrock'] },
   { id: 'Task', label: 'Subagents', hint: 'Spawn Claude Code subagents for big jobs', kinds: ['claude'] },
   { id: 'NotebookEdit', label: 'Notebooks', hint: 'Edit Jupyter notebooks', kinds: ['claude'] },
 ]
