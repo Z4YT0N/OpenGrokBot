@@ -13,7 +13,7 @@ export type McpServerDef =
  * - gemini: Google Gemini CLI. Your Google account (the same one Antigravity uses).
  * - openai: any OpenAI-compatible chat API: Kimi/Moonshot, OpenRouter, DeepSeek, Groq, xAI, Ollama…
  */
-export type ProviderKind = 'claude' | 'codex' | 'gemini' | 'openai'
+export type ProviderKind = 'claude' | 'codex' | 'gemini' | 'openai' | 'bedrock'
 
 export interface ProviderDef {
   kind: ProviderKind
@@ -24,6 +24,9 @@ export interface ProviderDef {
   baseUrl?: string
   /** Model ids offered in the picker. Free text is always allowed. */
   models?: string[]
+  /** Bedrock region and optional AWS CLI named profile. */
+  awsRegion?: string
+  awsProfile?: string
 }
 
 export interface Agent {
