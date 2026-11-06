@@ -52,7 +52,7 @@ export async function runBedrockTurn(params: RunTurnParams): Promise<TurnResult>
     return { text: '', error: String(err instanceof Error ? err.message : err), usage }
   }
   const cwd = agent.cwd ?? team.workspace
-  const tools = LOCAL_TOOLS.filter((t) => agent.tools.includes(t.claudeName))
+  const tools = LOCAL_TOOLS.filter((t) => agent.tools.includes(t.claudeName) && (t.name !== 'run_command' || agent.autoApproveTools || agent.permissionMode === 'bypassPermissions'))
   const messages: { role: string; content: Record<string, unknown>[] }[] = [
     { role: 'user', content: [{ text: buildTurnPrompt(team, conversation, agent, false, note) }] },
   ]
@@ -107,7 +107,7 @@ export async function runBedrockTurn(params: RunTurnParams): Promise<TurnResult>
       return { text: stripSkip(text), usage }
     }
     // Echo the entire assistant message before returning tool results.
-    messages.push({ role: 'assistant', content: blocks as Record<string, unknown>[] })
+    messages.push({ role: 'assistant', content: blocks as unknown as Record<string, unknown>[] })
     const results: Record<string, unknown>[] = []
     for (const call of calls) {
       const tool = tools.find((t) => t.name === call.name)
