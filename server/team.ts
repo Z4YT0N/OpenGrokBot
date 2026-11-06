@@ -6,7 +6,7 @@ import type { Agent, AutoReviewRule, McpServerDef, ProviderDef, Skill, Team, Tea
 const PERMISSION_MODES = new Set(['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'])
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max'])
 const SHAPES = new Set(['blob', 'round', 'triangle', 'hex', 'drop'])
-const PROVIDER_KINDS = new Set(['claude', 'codex', 'gemini', 'openai'])
+const PROVIDER_KINDS = new Set(['claude', 'codex', 'gemini', 'openai', 'bedrock'])
 
 const DEFAULT_SETTINGS: TeamSettings = {
   maxMessagesPerRound: 6,
@@ -108,6 +108,10 @@ export function parseProvider(raw: unknown, label = 'provider'): ProviderDef {
   if (typeof r.apiKey === 'string' && r.apiKey.trim()) def.apiKey = r.apiKey.trim()
   if (typeof r.baseUrl === 'string' && r.baseUrl.trim()) def.baseUrl = r.baseUrl.trim().replace(/\/+$/, '')
   if (kind === 'openai' && !def.baseUrl) fail(`${label}.baseUrl is required for an API provider`)
+  if (kind === 'bedrock') {
+    if (typeof r.awsRegion === 'string' && r.awsRegion.trim()) def.awsRegion = r.awsRegion.trim()
+    if (typeof r.awsProfile === 'string' && r.awsProfile.trim()) def.awsProfile = r.awsProfile.trim()
+  }
   const models = asStringList(r.models)
   if (models.length > 0) def.models = models
   return def
