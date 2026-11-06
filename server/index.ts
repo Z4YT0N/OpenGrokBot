@@ -5,6 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, statSync, writeFileSync } from 'no
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Account } from './account.js'
+import { insideRoots, trustedRequestOrigin } from './security.js'
 import { Approvals } from './approvals.js'
 import { CRON_PRESETS, nextRun } from './cron.js'
 import { emit, subscribe } from './events.js'
@@ -49,29 +50,42 @@ routines.start()
 
 const app = express()
 app.disable('x-powered-by')
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('Referrer-Policy', 'no-referrer')
+  res.setHeader('X-Frame-Options', 'DENY')
+  res.setHeader('Cache-Control', 'no-store')
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !trustedRequestOrigin(req)) {
+    res.status(403).json({ error: 'Untrusted request origin' })
+    return
+  }
+  next()
+})
 
 // ---- remote access (optional) ----
 const COOKIE = 'ogb_token'
 app.use((req, res, next) => {
   if (!TOKEN) return next()
-  const q = typeof req.query.token === 'string' ? req.query.token : null
-  if (q === TOKEN) {
-    res.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(TOKEN)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 365}`)
-    res.redirect(req.path === '/' ? '/' : req.path)
-    return
-  }
+
   const cookie = req.headers.cookie?.split(';').map((c) => c.trim()).find((c) => c.startsWith(`${COOKIE}=`))
   const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, '')
   const ok = (cookie && decodeURIComponent(cookie.slice(COOKIE.length + 1)) === TOKEN) || bearer === TOKEN
   if (ok) return next()
+  if (req.path === '/api/auth/login' && req.method === 'POST') return next()
   if (req.path.startsWith('/api/')) {
     res.status(401).json({ error: 'unauthorized' })
     return
   }
-  res.status(401).type('html').send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenGrokBot</title><body style="font-family:system-ui;background:#111;color:#eee;display:grid;place-items:center;height:100vh;margin:0"><form onsubmit="location.href=\'/?token=\'+encodeURIComponent(document.getElementById(\'t\').value);return false" style="display:flex;gap:8px"><input id="t" type="password" placeholder="Access token" style="padding:10px 14px;border-radius:10px;border:1px solid #333;background:#1c1c1c;color:#eee"><button style="padding:10px 16px;border-radius:10px;border:0;background:#fff;color:#111;font-weight:700">Open</button></form></body>')
+  res.status(401).type('html').send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenGrokBot</title><body style="font-family:system-ui;background:#111;color:#eee;display:grid;place-items:center;height:100vh;margin:0"><form onsubmit="fetch(\'/api/auth/login\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({token:document.getElementById(\'t\').value})}).then(r=>{if(r.ok)location.href=\'/\';else alert(\'Invalid token\')});return false" style="display:flex;gap:8px"><input id="t" type="password" placeholder="Access token" style="padding:10px 14px;border-radius:10px;border:1px solid #333;background:#1c1c1c;color:#eee"><button style="padding:10px 16px;border-radius:10px;border:0;background:#fff;color:#111;font-weight:700">Open</button></form></body>')
 })
 
 app.use(express.json({ limit: '2mb' }))
+app.post('/api/auth/login', (req, res) => {
+  if (!TOKEN || req.body?.token !== TOKEN) { res.status(401).json({ error: 'unauthorized' }); return }
+  const secure = req.secure || req.get('x-forwarded-proto') === 'https'
+  res.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(TOKEN)}; Path=/; HttpOnly; SameSite=Strict; ${secure ? 'Secure; ' : ''}Max-Age=86400`)
+  res.json({ ok: true })
+})
 
 /** API keys never leave the server. */
 function publicTeam(t: Team): Team {
@@ -108,7 +122,7 @@ function allowedFile(p: string): boolean {
   const norm = (s: string): string => (process.platform === 'win32' ? path.resolve(s).toLowerCase() : path.resolve(s))
   const abs = norm(p)
   const roots = [team.workspace, uploadsDir, ...team.agents.map((a) => a.cwd).filter((c): c is string => typeof c === 'string')].map(norm)
-  return roots.some((r) => abs === r || abs.startsWith(r + path.sep))
+  return insideRoots(abs, roots)
 }
 
 app.get('/api/state', (_req, res) => {
@@ -225,7 +239,7 @@ app.get('/api/conversations/:id/export.md', (req, res) => {
 /** Raw-body upload: PUT the file bytes, get an Attachment back. */
 app.put('/api/uploads/:conversationId/:name', express.raw({ type: () => true, limit: '60mb' }), (req, res) => {
   const conv = String(req.params.conversationId).replace(/[^a-z0-9_-]/gi, '')
-  const safe = String(req.params.name).replace(/[\\/:*?"<>|]/g, '_').slice(0, 120) || 'file'
+  const safe = path.basename(String(req.params.name)).replace(/[\\/:*?"<>|]/g, '_').slice(0, 120) || 'file'
   const dir = path.join(uploadsDir, conv)
   mkdirSync(dir, { recursive: true })
   const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)
@@ -257,7 +271,7 @@ app.get('/api/file', (req, res) => {
 /** Open a file an employee produced with the OS default app (browser for .html). Local app, local disk. */
 app.post('/api/open', (req, res) => {
   const p = typeof req.body?.path === 'string' ? req.body.path.trim() : ''
-  if (!p || !path.isAbsolute(p) || !existsSync(p)) {
+  if (!p || !allowedFile(p)) {
     res.status(400).json({ error: 'file not found' })
     return
   }
