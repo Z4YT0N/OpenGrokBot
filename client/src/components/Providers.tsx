@@ -51,7 +51,7 @@ export function Providers({ team }: ProvidersProps) {
             {checking ? 'Checking…' : 'Re-check'}
           </button>
           <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
-            + API provider
+            + Provider
           </button>
         </div>
       </div>
@@ -110,7 +110,7 @@ export function Providers({ team }: ProvidersProps) {
                     {p.label} <span className="muted small">{id}</span>
                   </div>
                   <div className="row-hint">
-                    {p.baseUrl} · {st ? st.detail : 'checking…'}
+                    {p.kind === 'bedrock' ? `AWS Bedrock ${p.awsRegion ?? ''} ${p.awsProfile ? `(${p.awsProfile})` : ''}` : p.baseUrl} · {st ? st.detail : 'checking…'}
                   </div>
                   <div className="row-hint">{users.length ? `Used by ${users.join(', ')}` : 'Not used by anyone yet'}</div>
                 </div>
@@ -142,6 +142,9 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
   const [baseUrl, setBaseUrl] = useState(existing?.baseUrl ?? '')
   const [apiKey, setApiKey] = useState(existing?.apiKey ?? '')
   const [models, setModels] = useState((existing?.models ?? []).join(', '))
+  const [kind, setKind] = useState<ProviderDef['kind']>(existing?.kind ?? 'openai')
+  const [awsRegion, setAwsRegion] = useState(existing?.awsRegion ?? '')
+  const [awsProfile, setAwsProfile] = useState(existing?.awsProfile ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -150,6 +153,7 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
     const p = API_PRESETS.find((x) => x.id === presetId)
     if (!p) return
     setPid(p.id)
+    setKind('openai')
     setLabel(p.label)
     setBaseUrl(p.baseUrl)
     setModels(p.models.join(', '))
@@ -161,7 +165,9 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
     try {
       const def: Partial<ProviderDef> = builtIn
         ? { apiKey: apiKey.trim() || undefined, label: label.trim() || existing?.label }
-        : { kind: 'openai', label: label.trim() || pid, baseUrl: baseUrl.trim(), apiKey: apiKey.trim() || undefined, models: models.split(',').map((m) => m.trim()).filter(Boolean) }
+        : kind === 'bedrock'
+          ? { kind, label: label.trim() || pid, awsRegion: awsRegion.trim(), awsProfile: awsProfile.trim(), models: models.split(',').map((m) => m.trim()).filter(Boolean) }
+          : { kind: 'openai', label: label.trim() || pid, baseUrl: baseUrl.trim(), apiKey: apiKey.trim() || undefined, models: models.split(',').map((m) => m.trim()).filter(Boolean) }
       if (!builtIn && !/^[a-z0-9_-]+$/.test(pid)) throw new Error('Id must be lowercase letters, digits, - or _')
       await putProvider(pid, def)
       onDone()
@@ -222,6 +228,13 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
               </label>
             )}
             <label className="field">
+              <span>Provider type</span>
+              <select value={kind} onChange={(e) => setKind(e.target.value as ProviderDef['kind'])} disabled={existing !== undefined}>
+                <option value="openai">OpenAI-compatible API (including Ollama)</option>
+                <option value="bedrock">Amazon Bedrock (AWS CLI v2)</option>
+              </select>
+            </label>
+            <label className="field">
               <span>Id</span>
               <input value={pid} onChange={(e) => setPid(e.target.value)} placeholder="kimi" disabled={existing !== undefined} />
             </label>
@@ -229,6 +242,11 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
               <span>Label</span>
               <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Kimi (Moonshot)" />
             </label>
+            {kind === 'bedrock' ? <>
+              <label className="field"><span>AWS region</span><input value={awsRegion} onChange={(e) => setAwsRegion(e.target.value)} placeholder="us-east-1" /></label>
+              <label className="field"><span>AWS profile (optional)</span><input value={awsProfile} onChange={(e) => setAwsProfile(e.target.value)} placeholder="default" /></label>
+              <p className="hint">Uses AWS CLI v2 credential chain; grant only bedrock:InvokeModel for approved models.</p>
+            </> : <>
             <label className="field">
               <span>Base URL</span>
               <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.moonshot.ai/v1" />
@@ -239,6 +257,7 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
               <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={keyHint ?? 'sk-…'} />
               {keyHint && <small>Get one at {keyHint}</small>}
             </label>
+            </>}
             <label className="field">
               <span>Models (comma separated, optional)</span>
               <input value={models} onChange={(e) => setModels(e.target.value)} placeholder="kimi-k2-thinking, kimi-k2-turbo-preview" />
@@ -254,7 +273,7 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
           <button type="button" className="btn" onClick={onDone}>
             Cancel
           </button>
-          <button type="button" className="btn btn-primary" disabled={busy || (!builtIn && (!pid.trim() || !baseUrl.trim()))} onClick={() => void save()}>
+          <button type="button" className="btn btn-primary" disabled={busy || (!builtIn && (!pid.trim() || (kind === 'openai' && !baseUrl.trim())))} onClick={() => void save()}>
             {busy ? 'Saving…' : 'Save'}
           </button>
         </div>
