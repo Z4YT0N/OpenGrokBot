@@ -2,6 +2,7 @@ import { cliVersion, runCli } from './cli.js'
 import { runClaudeTurn } from './claude.js'
 import { runCodexTurn } from './codex.js'
 import { runGeminiTurn } from './gemini.js'
+import { runBedrockTurn } from './bedrock.js'
 import { listOpenAiModels, runOpenAiTurn } from './openai.js'
 import type { ProviderRunner, RunTurnParams, TurnResult } from './types.js'
 import type { ProviderDef, ProviderKind, ProviderStatus, Team } from '../../shared/types.js'
@@ -11,6 +12,7 @@ const RUNNERS: Record<ProviderKind, ProviderRunner> = {
   codex: runCodexTurn,
   gemini: runGeminiTurn,
   openai: runOpenAiTurn,
+  bedrock: runBedrockTurn,
 }
 
 /** Providers whose CLI keeps a resumable session id. */
@@ -47,6 +49,11 @@ async function probe(id: string, def: ProviderDef): Promise<ProviderStatus> {
         if (!v) return { ...base, ok: false, detail: 'Gemini CLI not found. Install: npm i -g @google/gemini-cli, then run `gemini` once to sign in with Google.' }
         return { ...base, ok: true, detail: def.apiKey ? `${v} · API key` : `${v} · Google account login` }
       }
+      case 'bedrock': {
+        const version = await cliVersion('aws')
+        if (!version) return { ...base, ok: false, detail: 'AWS CLI v2 unavailable. Install AWS CLI and configure a profile or credentials.' }
+        return { ...base, ok: true, detail: `AWS CLI available; region: ${def.awsRegion || process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'not configured'}. Model access not verified.` }
+      }
       case 'openai': {
         if (!def.baseUrl) return { ...base, ok: false, detail: 'No base URL.' }
         const models = await listOpenAiModels(def.baseUrl, def.apiKey)
@@ -61,7 +68,7 @@ async function probe(id: string, def: ProviderDef): Promise<ProviderStatus> {
 export async function providerStatuses(team: Team, force = false): Promise<ProviderStatus[]> {
   const out: ProviderStatus[] = []
   for (const [id, def] of Object.entries(team.providers)) {
-    const key = `${id}:${def.kind}:${def.baseUrl ?? ''}:${def.apiKey ? 'key' : 'nokey'}`
+    const key = `${id}:${def.kind}:${def.baseUrl ?? ''}:${def.awsRegion ?? ''}:${def.awsProfile ?? ''}:${def.apiKey ? 'key' : 'nokey'}`
     const cached = statusCache.get(key)
     if (!force && cached && Date.now() - cached.at < 60_000) {
       out.push(cached.value)
